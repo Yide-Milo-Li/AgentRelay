@@ -94,7 +94,7 @@ Keep this first run synthetic; do not publish private prompts or credentials. Lo
   ```
 
   Then ask Codex: *Read the four values from that file and set them as runtime values on my AgentRelay Site without printing any of them, then redeploy. The private key is a secret.* Delete the file afterwards or keep it in a password manager, and do not generate a new pair for a Site that already has subscribers. After the redeploy, open **Settings › Notifications** in each browser and choose **Turn on**. The [notifications guide](notifications.md) has the details.
-- **Sharing.** Add trusted accounts in the Site's Sharing settings, then use **Settings › General › Workspace › Share this workspace** for the request to give Codex. See [Shared Workspace](../../README.md#shared-workspace). Sites Sharing and Agent Token revocation are independent; see [Agent connections](agent-connections.md#remove-access).
+- **Sharing.** Add trusted accounts in the Site's Sharing settings, then use **Settings › General › Workspace › Share this workspace** for the request to give Codex. See [Shared Workspace](../reference/shared-workspace.md). Sites Sharing and Agent Token revocation are independent; see [Agent connections](agent-connections.md#remove-access).
 - **Images.** See [image handoffs](image-handoffs.md).
 
 ## Updating later

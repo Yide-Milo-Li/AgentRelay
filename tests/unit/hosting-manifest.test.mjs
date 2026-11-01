@@ -19,7 +19,7 @@ test("tracked hosting manifest preserves bindings and optional private Site iden
 });
 
 test("tracked documentation never carries a Site identity", () => {
-  const files = spawnSync("git", ["ls-files", "README.md", "PRODUCT.md", "docs"], { cwd: projectRoot, encoding: "utf8" });
+  const files = spawnSync("git", ["ls-files", "README.md", "README.zh-CN.md", "PRODUCT.md", "docs"], { cwd: projectRoot, encoding: "utf8" });
   if (files.status !== 0) return;
   for (const file of files.stdout.split("\n").filter((name) => name.endsWith(".md"))) {
     const staged = spawnSync("git", ["show", `:${file}`], { cwd: projectRoot, encoding: "utf8" });

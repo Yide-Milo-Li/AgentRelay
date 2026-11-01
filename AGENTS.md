@@ -7,15 +7,15 @@
 
 ## 1. Authoritative Reference
 
-The current architecture, database schema guidance, deployment procedures, and testing standards are canonically maintained in **[README.md](README.md)**. Repository organization and agent-facing file placement rules are maintained in this `AGENTS.md`; do not create a separate repository-structure document.
+**[README.md](README.md)** is the entry point and overview; [README.zh-CN.md](README.zh-CN.md) is its Simplified Chinese translation, and the English version prevails. The current architecture, database schema guidance, deployment procedures, and testing standards are canonically maintained in `docs/`: [development and verification](docs/guides/development.md), [first deployment](docs/guides/first-deployment.md), the [security invariants](docs/reference/security-invariants.md), the [MCP protocol](docs/reference/mcp-protocol.md) and the other documents in `docs/reference/`. Repository organization and agent-facing file placement rules are maintained in this `AGENTS.md`; do not create a separate repository-structure document.
 
-AI Agents (Codex, Claude Code, ChatGPT, Cursor, Windsurf, Antigravity) working in this repository must directly read and strictly comply with the guidelines defined in `README.md`.
+AI Agents (Codex, Claude Code, ChatGPT, Cursor, Windsurf, Antigravity) working in this repository must directly read and strictly comply with the guidelines defined in those documents. When a change alters what the README says (features, supported agents, setup steps, limits), update `README.md` and `README.zh-CN.md` together.
 
 ### Architecture diagram
 
 An interactive system overview lives in `docs/architecture/`: `agentrelay-system-overview.html` (open it in a browser) is rendered from `agentrelay-system-overview.architecture.json`, which is the editable source. It shows the entry points (browser, native `/mcp`, token agents through the local client), the Sites sign-in gate, the Worker's route, auth, MCP and service layers, and the D1, R2 and Web Push side effects. Each component cites the source lines it was drawn from, pinned to the commit in `meta.repository.revision`.
 
-- Read it first when a task crosses modules, touches an entry point, authentication, storage or notifications, or when you need to orient in an unfamiliar area. The code and the rules in this file and `README.md` stay authoritative; when the diagram disagrees with them, trust the code and report the drift.
+- Read it first when a task crosses modules, touches an entry point, authentication, storage or notifications, or when you need to orient in an unfamiliar area. The code and the rules in this file and the documents in `docs/` stay authoritative; when the diagram disagrees with them, trust the code and report the drift.
 - Update it in the same change when you add, remove or rename a component it shows, change which layer calls which, add an endpoint, binding or external service, or move a cited file. Edit the JSON (never the HTML by hand), set `meta.repository.revision` to the commit the cited lines come from, and re-render with the `archify` skill (without it, update the JSON and say so in the pull request): `finalize architecture docs/architecture/agentrelay-system-overview.architecture.json docs/architecture/agentrelay-system-overview.html --repo-root . --quality showcase --out-dir outputs/archify/<run-id>`. Commit only the JSON and the HTML; finalize receipts, delivery sidecars and screenshots carry absolute local paths and belong in `outputs/`.
 - Changes inside one service, UI-only work and new fields that keep the same callers need no diagram update.
 
@@ -67,7 +67,7 @@ Whenever generating, modifying, or refactoring code in this repository, agents *
 
 ### Status and scope
 
-The source layout below has been applied. Use the current entrypoints in README.md and keep new files within these responsibility boundaries. Do not create parallel implementations or a second route tree. Directory names listed for future needs are created only when used; the tree is not a requirement for empty scaffolding. These rules do not themselves authorize commits or deployment.
+The source layout below has been applied. Use the current entrypoints in the [development guide](docs/guides/development.md#code-map) and keep new files within these responsibility boundaries. Do not create parallel implementations or a second route tree. Directory names listed for future needs are created only when used; the tree is not a requirement for empty scaffolding. These rules do not themselves authorize commits or deployment.
 
 Keep one application, one package manifest, and one deployment. Add separate packages only when there is a real independent consumer, release cycle, or deployment boundary. Create folders when their first real file is needed; do not generate empty scaffolding.
 
@@ -75,7 +75,8 @@ Keep one application, one package manifest, and one deployment. Add separate pac
 
 ```text
 AgentRelay/
-|-- README.md                    # Current architecture, entrypoints, commands, deployment
+|-- README.md                    # Overview, setup and documentation index (English)
+|-- README.zh-CN.md              # Simplified Chinese translation of README.md
 |-- AGENTS.md                    # Tracked agent rules, structure and dependency boundaries
 |-- PRODUCT.md                   # Product brief; preserve its tool-facing root path
 |-- package.json / package-lock.json
@@ -140,7 +141,8 @@ AgentRelay/
 |-- docs/
 |   |-- architecture/            # System overview diagram: editable .architecture.json and rendered .html
 |   |   `-- decisions/           # Architectural decisions with context and consequences
-|   |-- guides/                  # Developer and user task guides
+|   |-- guides/                  # Developer and user task guides, including local development
+|   |-- reference/               # MCP protocol, data model, HTTP routes and security invariants
 |   |-- operations/              # Deployment, recovery, troubleshooting
 |   |-- plans/                   # Scoped work plans and acceptance criteria
 |   `-- archive/                 # Explicitly historical documents
@@ -219,7 +221,7 @@ The source and supporting-file migration has been applied locally. Future struct
 1. Change aliases, imports, `components.json` CSS/aliases, scoped vendor lint exceptions, and the Drizzle schema path together with the affected moves. Do not regenerate migration history solely because a TypeScript path changed.
 2. Move the route tree atomically; do not leave both root `app/` and `src/app/`. Preserve Worker configuration, Sites hosting identity, and its build-output copy. Verify Tailwind v4 source detection, assets, fonts, and CSS in the rendered application.
 3. Audit `import.meta.url`, project-root resolution, `../node_modules`, subprocess paths, preload scripts, auxiliary Worker paths, and `.mts`/`.mjs` imports before moving tooling. Wrappers must preserve arguments, environment setup, signals, and exit codes.
-4. Update README entrypoints, commands, links, and current directory inventory after each completed phase. Keep structure governance here instead of a separate repository-structure file.
+4. Update the development guide's entrypoints, commands and repository layout, and the README's links, after each completed phase. Keep structure governance here instead of a separate repository-structure file.
 
 ### Implementation sequence and acceptance
 
@@ -230,6 +232,6 @@ The source and supporting-file migration has been applied locally. Future struct
 
 Enforcement is implemented by scoped ESLint restrictions and `npm run check:architecture`. The resolved-import check covers aliases, relative paths, re-exports, type imports, cycles, literal dynamic imports, client import graphs, and Node builtin names with or without `node:`. Computed runtime imports fail review. Run `npm run test:unit` to verify forbidden-import probes and compatibility entrypoints. Any temporary exception must identify an exact file, reason, and removal condition; no directory-wide bypasses. The GitHub Actions workflow runs checks and built-Worker integration on Ubuntu and Windows; still run applicable checks locally and verify the hosted results.
 
-For runtime changes, run the applicable README checks: TypeScript, production build, built Worker preview, both HTTP/D1 integration suites, and browser checks for the affected flows. Preserve workspace isolation (including the shared-workspace suite), CAS races/stale versions, idempotency/conflicts, exact prompt text, origin/size rejection, and token issuance/revocation tests. Check language switching, mobile navigation, demo mode, and connector preview when affected. A source move or type check alone does not prove Worker compatibility, client-bundle isolation, or live acceptance.
+For runtime changes, run the applicable checks from the [development guide](docs/guides/development.md): TypeScript, production build, built Worker preview, both HTTP/D1 integration suites, and browser checks for the affected flows. Preserve workspace isolation (including the shared-workspace suite), CAS races/stale versions, idempotency/conflicts, exact prompt text, origin/size rejection, and token issuance/revocation tests. Check language switching, mobile navigation, demo mode, and connector preview when affected. A source move or type check alone does not prove Worker compatibility, client-bundle isolation, or live acceptance.
 
 Declare migration complete only when dependencies are enforced, obsolete catch-all source locations are removed, documentation matches the actual layout, and applicable checks pass. Deployment remains a separate operation against the existing Sites project.

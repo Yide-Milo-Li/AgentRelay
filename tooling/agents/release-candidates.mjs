@@ -9,9 +9,9 @@ import { projectRoot } from "../environment/project-root.mjs";
 import { copyClient, CLIENT_VERSION } from "./client-install.mjs";
 
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
-const ROOT_FILES = ["README.md", "PRODUCT.md", "LICENSE", "SECURITY.md", "CONTRIBUTING.md", "package.json", "package-lock.json", ".gitignore", ".npmrc", ".gitattributes", ".node-version",
+const ROOT_FILES = ["README.md", "README.zh-CN.md", "PRODUCT.md", "LICENSE", "SECURITY.md", "CONTRIBUTING.md", "package.json", "package-lock.json", ".gitignore", ".npmrc", ".gitattributes", ".node-version",
   "components.json", "tsconfig.json", "cloudflare-env.d.ts", "next.config.ts", "vite.config.ts", "eslint.config.mjs", "postcss.config.mjs", "drizzle.config.ts"];
-const DIRECTORIES = [".github", "src", "worker", "drizzle", "public", "scripts", "tooling", "tests", "vendor", "examples", "docs/guides", "docs/architecture", "docs/operations"];
+const DIRECTORIES = [".github", "src", "worker", "drizzle", "public", "scripts", "tooling", "tests", "vendor", "examples", "docs/guides", "docs/reference", "docs/architecture", "docs/operations"];
 // The maintainer's release procedure describes the private repository; it stays there.
 const EXCLUDED = new Set(["docs/operations/open-source-release.md"]);
 const BINARY_EXTENSIONS = ["node", "png", "jpg", "jpeg", "webp", "woff", "woff2", "ico", "pdf", "zip"];

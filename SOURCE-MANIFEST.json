@@ -1,6 +1,6 @@
 {
   "version": "0.6.1",
-  "contentSha256": "9ce63a337a3ddda1f58ae8be6b7995cdc9e362aa63680b2db595e917c5c834b1",
+  "contentSha256": "6c314ef1deca4b5d831f657caa641dae8423c3b4f2e04caafe4a389763527104",
   "files": [
     {
       "file": ".gitattributes",
@@ -40,7 +40,7 @@
     },
     {
       "file": "AGENTS.md",
-      "sha256": "79bb7c2cb88693cdc290f3a32368da774e7e0427cbced3c6d7f84b757cf69d29"
+      "sha256": "a78bb90836171201acd01133a6927b29b489cc13f1f4d98099b69ba8738eacf1"
     },
     {
       "file": "cloudflare-env.d.ts",
@@ -52,7 +52,7 @@
     },
     {
       "file": "CONTRIBUTING.md",
-      "sha256": "ef90fd54f7f4af602116d7cd098fd763d1098d43c2b228827301c0e8be7af0b5"
+      "sha256": "ee9b8e1579a2c913e339b506645f0902c183a1155c8ffe66e925475d1e3fd163"
     },
     {
       "file": "design/DESIGN.md",
@@ -91,8 +91,12 @@
       "sha256": "5559ef3e82b71b5cae50a14867bd5abd2a01b2c42d7e42cde7d5c6158d7505ae"
     },
     {
+      "file": "docs/guides/development.md",
+      "sha256": "c4244f388243ee4d0a249c99afb928342de02a7e32b84831742a041077eb6a7b"
+    },
+    {
       "file": "docs/guides/first-deployment.md",
-      "sha256": "a415e499c1ef1e7517f7df902e6d68abb10350d05bc41f3fb1beed7310bc8d7b"
+      "sha256": "ca688881076f4779d2bbf8f5c742f6d0a99de9e356dc2f50c7982768b40b8fd0"
     },
     {
       "file": "docs/guides/image-handoffs.md",
@@ -121,6 +125,38 @@
     {
       "file": "docs/operations/windows-node-crashes.md",
       "sha256": "b0499d05d5f745efc1b4154b684a01fdedf25aeb278d163cf65031f1d253db24"
+    },
+    {
+      "file": "docs/reference/devices-and-connections.md",
+      "sha256": "e828aca4ae900fac701c9966eaa9f28185f4fb18bc8ac9032cc749206ed23d64"
+    },
+    {
+      "file": "docs/reference/git-context.md",
+      "sha256": "35c2f5ca0e9b4eaf021a8f3dc946c23f7b1205bfabdaeaffa825463b60813a02"
+    },
+    {
+      "file": "docs/reference/images.md",
+      "sha256": "36d111f0f60ea1af6d82b8a5ddfcb0096e322dfc354ff11b7800ca6c9c92ad9a"
+    },
+    {
+      "file": "docs/reference/mcp-protocol.md",
+      "sha256": "840d217d265921e40dda672af9f7c1f8d31bc8db6539e13dfc748e177a381774"
+    },
+    {
+      "file": "docs/reference/projects.md",
+      "sha256": "45157d69a1cf2b7f3099de62aaf7d0d7c04eb85b83696d046023eba4cbd3d01f"
+    },
+    {
+      "file": "docs/reference/receipts-and-threads.md",
+      "sha256": "2f847acc3da178e3b8d5a2ee185955eca2e23652c7ca2ea3ce653ea336ad42ad"
+    },
+    {
+      "file": "docs/reference/security-invariants.md",
+      "sha256": "8fc618ae301e68bb3fd0a207753747019d19faded8315847c154ac964feaffe6"
+    },
+    {
+      "file": "docs/reference/shared-workspace.md",
+      "sha256": "4a7f87b279536bb802a6683ffccc25a67bfd47903672da2b0f2550fafa7d34d6"
     },
     {
       "file": "drizzle/0000_curious_nuke.sql",
@@ -316,7 +352,7 @@
     },
     {
       "file": "PRODUCT.md",
-      "sha256": "59d00fec16de8183152a126d8243b21470527994919d397d32685d45948e65ef"
+      "sha256": "941e293574cbd1971293fbe86d9de634c11847034c865fe4da755df7adf278b3"
     },
     {
       "file": "public/favicon.svg",
@@ -328,7 +364,11 @@
     },
     {
       "file": "README.md",
-      "sha256": "884bd08bcbb772b91986019cdb826908231c76670be93ca50e87878cb706e0a4"
+      "sha256": "efa7cd5cc0bbb1410b982e6923f17f3a77493dc123d1d99f5f6f359165fa3508"
+    },
+    {
+      "file": "README.zh-CN.md",
+      "sha256": "2f8d180f6018a763749fbc51864f0c06166f64b850efab328477df981698d66a"
     },
     {
       "file": "scripts/agents/agentrelay.mjs",
@@ -1724,7 +1764,7 @@
     },
     {
       "file": "tests/unit/hosting-manifest.test.mjs",
-      "sha256": "7f8de8378ceae8b48bd1101fcb6cf42705b9ac17862dca533b41e8cd74079677"
+      "sha256": "7fa71cde6b90ea3707e228b860b8b50928af4f7b961051a6095be63ce0f33fab"
     },
     {
       "file": "tests/unit/image-inspection.test.mjs",
@@ -1876,7 +1916,7 @@
     },
     {
       "file": "tooling/agents/release-candidates.mjs",
-      "sha256": "490b3b48fb74e0b6d48730f7ffc3e89a0c035610a27de40b639487c7c107b65b"
+      "sha256": "4274c5264d7b8aa80271f7851922f466cf7401fb24b1530f89182f502d2a4d21"
     },
     {
       "file": "tooling/agents/skill/agentrelay/references/handoff-content.md",

@@ -1,6 +1,6 @@
 # Contributing to AgentRelay
 
-Use the development Node.js version in `.node-version`, npm, Git and `tar` (`tar.exe` on Windows). Deployment requires an eligible ChatGPT Sites account and the Sites plugin in Codex; local development does not publish a Site. See the [README](README.md#-local-development--verification) for checkout-local temporary directories and setup.
+Use the development Node.js version in `.node-version`, npm, Git and `tar` (`tar.exe` on Windows). Deployment requires an eligible ChatGPT Sites account and the Sites plugin in Codex; local development does not publish a Site. See the [development guide](docs/guides/development.md) for checkout-local temporary directories and setup.
 
 Install the locked dependencies from the repository root:
 
@@ -26,7 +26,7 @@ The integration runner uses the built Worker and a disposable local database. It
 
 ## Preserve the security invariants
 
-The [README](README.md#architectural-invariants) defines the complete rules:
+The [security invariants](docs/reference/security-invariants.md) define the complete rules:
 
 1. Resolve the workspace through trusted authentication and scope every operation by `ownerId`; never accept a workspace identifier from the client.
 2. Guard handoff lifecycle transitions with the current `version` and increment it atomically. Store or clear a completion receipt in that same transition.
