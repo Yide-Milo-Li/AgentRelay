@@ -1,6 +1,6 @@
 {
   "version": "0.6.1",
-  "contentSha256": "71e7be304f81f72e9f00450bf1f3f03f5ec9b6107ff1c1cc36274898c230a876",
+  "contentSha256": "0492075a6cfb09d942110d296fb2495b8219dcb2bc239c7f29a4d1d8387540a6",
   "files": [
     {
       "file": ".gitattributes",
@@ -1744,7 +1744,7 @@
     },
     {
       "file": "tests/unit/agent-tokens.test.mjs",
-      "sha256": "871c933d238f041b7ada0cecec9ae6d4c3da8491a7d352fee9af87bc230e572f"
+      "sha256": "1ee66a68323e73cbd9637b4b4bf481bd12fab500d7a7a2ee4748e3627465ecd8"
     },
     {
       "file": "tests/unit/architecture.test.mjs",

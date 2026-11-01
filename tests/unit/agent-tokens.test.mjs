@@ -269,11 +269,16 @@ test("extending sets a new lifetime from now, can go permanent and back, and is 
   const before = Date.now(), longer = await tokens.updateAgentToken(owner.owner, a.id, { expiresInDays: 365, version: 1 }, member);
   assert.equal(longer.version, 2); assert.equal(longer.neverExpires, false);
   assert.ok(longer.expiresAt >= before + 365 * DAY_MS && longer.expiresAt <= Date.now() + 365 * DAY_MS);
+  // The feed orders events by time, then by random id, so events recorded in one millisecond have no
+  // defined order. Give each recorded change its own millisecond so the newest-first check below holds.
+  const nextMillisecond = () => { const start = Date.now(); while (Date.now() === start); };
+  nextMillisecond();
   const forever = await tokens.updateAgentToken(owner.owner, a.id, { expiresInDays: null, acknowledgePermanentRisk: true }, owner);
   assert.deepEqual([forever.neverExpires, forever.expiresAt, forever.version], [true, null, 3]);
   assert.equal(secretRow(a.id).expiresAt, db.prepare("select created_at from agent_tokens where id = ?").get(a.id).created_at);
   const again = await tokens.updateAgentToken(owner.owner, a.id, { expiresInDays: null, acknowledgePermanentRisk: true }, owner);
   assert.equal(again.version, 4);
+  nextMillisecond();
   const shorter = await tokens.updateAgentToken(owner.owner, a.id, { expiresInDays: 7 }, owner);
   assert.equal(shorter.neverExpires, false); assert.ok(shorter.expiresAt <= Date.now() + 7 * DAY_MS);
   const extended = history().filter(event => event.kind === "extended");
