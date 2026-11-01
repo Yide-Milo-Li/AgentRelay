@@ -1,0 +1,6 @@
+import { connectionFromAgent } from "@/server/auth";
+import { json, failure } from "@/server/http";
+export const dynamic = "force-dynamic";
+export async function GET(request: Request) {
+  try { return json(await connectionFromAgent(request)); } catch (e) { return failure(e); }
+}

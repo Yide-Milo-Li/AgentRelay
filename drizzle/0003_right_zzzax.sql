@@ -1,0 +1,1 @@
+CREATE INDEX `handoffs_owner_storage` ON `handoffs` (`owner_id`,length(CAST("content" AS BLOB)),`id`,`status`,`expires_at`,`created_at`,`updated_at`);

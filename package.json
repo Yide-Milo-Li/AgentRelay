@@ -1,0 +1,146 @@
+{
+  "name": "agentrelay",
+  "version": "0.2.0",
+  "description": "Private cross-device prompt handoff platform built for multi-device developers and AI agent collaboration",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "install:ci": "node scripts/install-ci.mjs",
+    "dev": "node scripts/run-framework.mjs dev",
+    "build": "node scripts/run-framework.mjs build",
+    "start": "node scripts/preview-local.mjs",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "node scripts/db/migrate-local.mjs",
+    "check:architecture": "node scripts/checks/architecture.mjs",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "node --test tests/unit/*.test.mjs",
+    "test:e2e:keyboard": "node tests/e2e/keyboard-shortcuts.mjs",
+    "test:e2e:devices": "node tests/e2e/devices-connections.mjs",
+    "test:e2e:storage": "node tests/e2e/storage-management.mjs",
+    "test:e2e:images": "node tests/e2e/image-handoffs.mjs",
+    "test:e2e:projects": "node tests/e2e/project-organization.mjs",
+    "test:e2e:git-context": "node tests/e2e/git-context.mjs",
+    "test:integration:storage": "node tests/integration/verify-agentrelay-storage.mjs",
+    "test:integration:attachments": "node tests/integration/verify-agentrelay-attachments.mjs",
+    "test:integration:bridge": "node tests/integration/verify-agentrelay-bridge.mjs",
+    "test:integration:workspace": "node tests/integration/verify-agentrelay-workspace.mjs",
+    "test:integration:projects": "node tests/integration/verify-agentrelay-projects.mjs",
+    "test:integration:receipts": "node tests/integration/verify-agentrelay-receipts.mjs",
+    "test:integration:git-context": "node tests/integration/verify-agentrelay-git-context.mjs",
+    "test:integration": "node tests/integration/run-suites.mjs",
+    "test:integration:local": "node scripts/verify-agentrelay-local.mjs",
+    "test:integration:proxy": "node tests/integration/verify-preview-body-draining.mjs",
+    "test:integration:transport": "node tests/integration/verify-preview-transport.mjs",
+    "test:integration:persistence": "node tests/integration/verify-preview-persistence.mjs",
+    "test:e2e:identity": "node tests/e2e/identity-connections.mjs",
+    "test:e2e:lifecycle": "node tests/e2e/connection-lifecycle.mjs",
+    "test:e2e:notifications": "node tests/e2e/notification-foreground.mjs",
+    "test:e2e:notification-settings": "node tests/integration/run-notification-events.mjs tests/e2e/notification-settings.mjs",
+    "test:integration:connections": "node tests/integration/verify-agentrelay-connections.mjs",
+    "test:integration:client": "node tests/integration/verify-agentrelay-client.mjs",
+    "test:integration:notifications": "node tests/integration/run-notification-events.mjs"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.7.0",
+    "@block65/webcrypto-web-push": "2.0.0",
+    "@fontsource-variable/geist": "5.3.0",
+    "@fontsource-variable/geist-mono": "5.3.0",
+    "@hookform/resolvers": "^5.7.1",
+    "@shadcn/react": "^0.3.0",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "cmdk": "^1.1.1",
+    "date-fns": "^4.4.0",
+    "drizzle-orm": "0.45.2",
+    "embla-carousel-react": "^8.6.0",
+    "input-otp": "^1.4.2",
+    "lucide-react": "^1.31.0",
+    "next": "16.4.3",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.6.7",
+    "react": "19.3.1",
+    "react-day-picker": "^10.0.1",
+    "react-dom": "19.3.1",
+    "react-hook-form": "^7.85.0",
+    "react-markdown": "^10.1.0",
+    "react-resizable-panels": "^4.12.2",
+    "recharts": "^3.8.0",
+    "remark-gfm": "^4.0.1",
+    "sonner": "^2.0.8",
+    "tailwind-merge": "3.6.0",
+    "vaul": "^1.1.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.66.0",
+    "@cloudflare/workers-types": "5.20261023.1",
+    "@napi-rs/keyring": "2.1.2",
+    "@tailwindcss/postcss": "4.2.1",
+    "@types/node": "22.19.19",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "@vitejs/plugin-rsc": "0.5.38",
+    "drizzle-kit": "0.31.11",
+    "esbuild": "0.28.2",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.4.3",
+    "js-yaml": "4.3.2",
+    "json-rpc-2.0": "1.7.1",
+    "miniflare": "5.20261023.1-beta",
+    "raw-body": "3.0.2",
+    "react-server-dom-webpack": "19.3.1",
+    "sharp": "0.35.5",
+    "tailwindcss": "4.2.1",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "5.9.3",
+    "vinext": "1.4.0",
+    "vite": "8.3.5",
+    "wrangler": "4.154.0"
+  },
+  "type": "module",
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "$esbuild"
+    },
+    "eslint": {
+      "minimatch": "11.0.1"
+    },
+    "@eslint/config-array": {
+      "minimatch": "11.0.1"
+    },
+    "@eslint/eslintrc": {
+      "minimatch": "11.0.1"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.1"
+    },
+    "eslint-plugin-import": {
+      "minimatch": "11.0.1"
+    },
+    "eslint-plugin-jsx-a11y": {
+      "minimatch": "11.0.1"
+    },
+    "eslint-plugin-react": {
+      "minimatch": "11.0.1"
+    },
+    "satori": {
+      "fflate": "0.7.5"
+    },
+    "@shuding/opentype.js": {
+      "fflate": "0.7.5"
+    },
+    "miniflare": {
+      "sharp": "0.35.5"
+    }
+  },
+  "allowScripts": {
+    "sharp": true,
+    "esbuild": true,
+    "workerd": true
+  }
+}

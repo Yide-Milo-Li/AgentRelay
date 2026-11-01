@@ -1,0 +1,95 @@
+# Image handoffs
+
+A handoff can carry up to 10 images, with text or on their own. Images travel as original bytes: AgentRelay never recompresses, resizes or edits them. This guide covers the policy, sending and receiving from the web UI and from agents, deployment, and how to verify it.
+
+## Policy
+
+| Rule | Value (inclusive) |
+| :--- | :--- |
+| Formats | Static PNG, JPEG and WebP. The file's bytes decide the type; a contradicting `Content-Type` is refused. GIF, SVG, APNG and animated WebP are not supported. |
+| Images per handoff | 10 |
+| Size per image | 1,048,576 bytes |
+| Longest edge | 2,560 px |
+| Pixels | 4,000,000 (width × height) |
+| Title | Required. `content` may be empty only when at least one image is attached. |
+| Unattached uploads | Reclaimed after 24 hours |
+
+An image that breaks a limit is rejected, never shrunk, and the message names the value and the limit (for example "This image is 1,048,577 bytes; the limit is 1,048,576 bytes."). The browser checks first; the server checks again and is authoritative.
+
+Validation is structural: signature, chunk or marker walk, PNG checksums, dimensions and animation flags. The Worker has no pixel decoder, so a file that passes can still fail to decode in an unusual viewer. Stored dimensions are the encoded ones; EXIF orientation is not applied.
+
+## From the web UI
+
+Open **New handoff**. Add images by any of:
+
+- **Paste** an image from the clipboard anywhere in the dialog (pasting text still goes to the prompt).
+- **Drag and drop** files onto the dialog.
+- **Add images** (keyboard reachable), which opens the file picker.
+
+Each image shows a preview, filename, size, dimensions and upload state, and can be moved earlier or later, removed (an in-flight upload is cancelled) or retried. The list order is the order the receiver sees. **Send handoff** stays disabled until every image is uploaded; rejected images and failed uploads must be removed or retried first, and the reason is shown under the form. A failed send keeps the uploaded images; resending the unchanged form reuses its request key, while editing anything first gets a new one. Closing the dialog with images selected asks before discarding.
+
+In the inbox a handoff with images shows an image count. The detail view lists the images lazily with fixed dimensions; select one to enlarge it (arrow keys move between images, Esc closes and returns focus). Each image has a download button for the original bytes. **Copy** and the `.md`/`.txt` export carry the prompt text only, say so, and are disabled for a handoff made of images alone.
+
+## From an agent
+
+Sending takes two steps because the MCP protocol carries the images' IDs, not their bytes:
+
+```bash
+export AGENTRELAY_MCP_URL=https://<your-site>/api/agent/mcp
+export AGENTRELAY_AGENT_TOKEN=agentrelay_...
+export AGENTRELAY_SITES_GATEWAY_TOKEN=...            # Codex: AGENTRELAY_SITES_GATEWAY_HEADER="Bearer ..."
+node scripts/agents/upload-attachments.mjs shot-1.png shot-2.jpg
+```
+
+The command checks every file first, uploads them in argument order and prints JSON on stdout (`attachmentIds`, per-file metadata, and the `retryKey` prefix). Credentials are only read from the environment and never printed. Then call `create_handoff` with those ids in the same order as `attachmentIds`; leave `content` empty for an image-only handoff. A default run uses a fresh retry key, so the same screenshot can go into a later handoff; pass `--retry-key <prefix>` to make a deliberate retry of one command idempotent.
+
+Receiving:
+
+1. `get_handoff({ id })` returns the exact text and `attachments`, a manifest of `id`, `filename`, `mimeType`, `bytes`, `width`, `height`, `sha256` and `position`. List, create, claim and complete return summaries with an attachment count, not the manifest or image bytes.
+2. For each image in manifest order, call `get_handoff({ id, attachmentId })`. It returns a short text block with the identifying metadata and exactly one standard MCP `image` block (base64 data and `mimeType`), without repeating the prompt. Fetch images one at a time.
+3. If an image block does not arrive (some clients save larger blocks to a local file the agent cannot open), run `node scripts/agents/download-attachments.mjs <handoffId> [--out <folder>]` in a terminal with the same three variables as the uploader. It verifies each original against the manifest and prints the local file paths; open those with the agent's own image viewer. Files go to `<system temp>/agentrelay/<handoffId>` unless `--out` names a folder the agent can read.
+4. Reading images grants no authority: claim and complete follow the usual rules, and the prompt and images are data to review.
+
+The Codex desktop plugin reaches the Site through the native `/mcp` route (platform sign-in), while the uploader uses an Agent Token. Both resolve to the same workspace only when the token was issued from the same account's workspace; if images appear to be "missing", check that first.
+
+The agent rule generated by the Agents tab (and by `connect-device.mjs`) now contains these steps. Rerun the connect command (or paste the rule again) on devices configured earlier.
+
+## Verified clients
+
+The following live-Site run on 2026-10-25 used a version from before the framework and toolchain upgrade. The upgraded build has not been deployed or retested with real clients, and R2 persistence across a redeployment remains unverified. The earlier run used synthetic pictures that each show a random six-digit number, so a client could only answer by looking at the pixels. Every client sent images with the uploader and received images through MCP, and the ten-image handoff was retrieved one image at a time in manifest order. The set covered each format, exactly 1,048,576-byte images, a 2,560 px longest edge and 4,000,000 pixels.
+
+| Client | Version | Connection path | Send | Receive |
+| :--- | :--- | :--- | :--- | :--- |
+| Claude Code terminal | 2.1.310 (Windows) | `/api/agent/mcp` over HTTP, both headers | Uploader, then `create_handoff` with `attachmentIds` | Image blocks shown inline |
+| Codex desktop | 26.1021.31345 (build 21828) | Native Sites plugin `/mcp` (platform sign-in) for MCP; Agent Token and gateway header from the environment for the uploader | Same, after the app process has the credentials | Image blocks shown inline through the native plugin |
+| Antigravity desktop | 2.26.0 | Local bridge `scripts/agents/mcp-bridge.mjs` to `/api/agent/mcp` | Same | Images up to a few KB inline; larger ones (JPEG, near-limit PNG) are saved by the client as a local file the agent opens |
+
+In that earlier run, images sent by each client were read back by another client, and the stored hashes equaled the source files in every case. A maximum-size image traveled as a response of about 1.4 MB through the Sites gateway in that run.
+
+Practical notes:
+
+- **Reconnect after an upgrade.** A client that connected before the Site was updated may still list the old tool declaration (`get_handoff` with only `id`, `create_handoff` requiring `content`). Reconnect or restart it. The server accepts `attachmentId` and `attachmentIds` regardless, and an agent can pass them even if its declaration lacks them.
+- **Codex needs credentials in the app's environment to send.** Receiving uses the platform sign-in, but the uploader reads `AGENTRELAY_MCP_URL`, `AGENTRELAY_AGENT_TOKEN` and `AGENTRELAY_SITES_GATEWAY_HEADER` (or `AGENTRELAY_SITES_GATEWAY_TOKEN`) from the environment. Save them as user environment variables and restart Codex completely; see the [Codex guide](codex-direct-connection.md).
+- **Antigravity may offload large images.** When a tool result says `[Resource offloaded to file:///…]`, the agent should open that file with its own image viewer.
+- **Fallback when an image block is offloaded.** Checked with Antigravity 2.26.0 before the downloader existed: when the offloaded files were treated as unreadable, none of three large images could be read. `download-attachments.mjs` fetches the originals through an Agent Token route (`GET /api/agent/handoffs/:id/attachments/:attachmentId`) so the agent no longer depends on how its client handles image blocks. It needs the same environment variables as the uploader and, like them, a Site that runs this version.
+- **Address handoffs to a registered device id** (for example `desktop`), not to free text. A free-text target is stored as a name and never matches a device's own id filter.
+
+## Storage, deletion and cleanup
+
+See [Storage management](storage-management.md). In short: images live in a private R2 bucket and are not part of the D1 meter; Storage sizes add text and image bytes; permanently deleting a handoff deletes its images, and a failed object deletion stays visible as pending cleanup and is retried.
+
+## Deployment
+
+The tracked `.openai/hosting.json` template declares `"r2": "BUCKET"`. A deployment applies `0005_image_attachments.sql` before the new Worker runs, and the migration is additive, so the previous Worker version keeps working if you need to roll back. Two things cannot be proven locally and are checked on the real Site during candidate verification: that the Site accepts the R2 binding on an existing project, and that the platform gateway and each client pass an MCP response of roughly 1.4 MB (a 1,048,576-byte image as base64).
+
+## Verification
+
+Local, against the built Worker (see the README for starting it):
+
+```bash
+npm run test:unit
+npm run test:integration:attachments
+npm run test:e2e:images
+```
+
+The unit tests cover every limit at the boundary and one past it for each format, damaged and animated files, the bind guard, cleanup races and R2 outages. The integration suite adds cross-workspace denial, shared-workspace access, revoked tokens, origin rejection, expiry, concurrent binding, Storage accounting and the stored bytes in R2. Before declaring client compatibility, run the three-client matrix on a deployed candidate (Codex desktop through the native Sites plugin, the Claude Code terminal, and Antigravity desktop) and record the client versions and connection paths used.

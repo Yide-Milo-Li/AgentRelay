@@ -1,0 +1,15 @@
+# Keep the source inventory stable across Git checkouts.
+* text=auto eol=lf
+# Keep Bash entrypoints portable when checked out on Windows or Linux.
+*.sh text eol=lf
+
+*.node binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ico binary
+*.pdf binary
+*.zip binary

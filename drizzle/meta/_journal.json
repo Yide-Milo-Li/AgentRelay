@@ -1,0 +1,139 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1792890183993,
+      "tag": "0000_curious_nuke",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1792893683357,
+      "tag": "0001_odd_steve_rogers",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792910789164,
+      "tag": "0002_public_mac_gargan",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1792912282889,
+      "tag": "0003_right_zzzax",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792916969859,
+      "tag": "0004_broken_princess_powerful",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1792965481831,
+      "tag": "0005_image_attachments",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1792983433051,
+      "tag": "0006_projects",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1792991064666,
+      "tag": "0007_magenta_mach_iv",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792998780639,
+      "tag": "0008_web_push_subscriptions",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1793000818459,
+      "tag": "0009_connection_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793001928993,
+      "tag": "0010_connection_rotation",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1793003230930,
+      "tag": "0011_connection_clients",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1793007457222,
+      "tag": "0012_notification_preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1793067637311,
+      "tag": "0013_connection_event_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1793071987330,
+      "tag": "0014_connection_expiry_reminders",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1793075053287,
+      "tag": "0015_handoff_receipts",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1793079211414,
+      "tag": "0016_progress_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1793089030700,
+      "tag": "0017_handoff_git_context",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1793091578318,
+      "tag": "0018_handoff_expiry_index",
+      "breakpoints": true
+    }
+  ]
+}

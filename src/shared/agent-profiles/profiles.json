@@ -1,0 +1,125 @@
+{
+  "profiles": [
+    {
+      "id": "claude-code",
+      "label": "Claude Code",
+      "description": {
+        "en": "Connects over MCP with a personal token.",
+        "zh": "通过 MCP 和个人 Token 连接。"
+      },
+      "ruleFile": "~/.claude/CLAUDE.md",
+      "skillDir": "~/.claude/skills/agentrelay",
+      "skillCommand": "/agentrelay",
+      "secrets": ["AGENTRELAY_AGENT_TOKEN", "AGENTRELAY_SITES_GATEWAY_TOKEN"],
+      "persist": {
+        "AGENTRELAY_AGENT_TOKEN": "{agentToken}",
+        "AGENTRELAY_SITES_GATEWAY_TOKEN": "{gatewayToken}"
+      },
+      "config": {
+        "file": "~/.claude.json",
+        "entryPath": ["mcpServers", "agentrelay"],
+        "template": {
+          "mcpServers": {
+            "agentrelay": {
+              "type": "http",
+              "url": "{siteUrl}/api/agent/mcp",
+              "headers": {
+                "Authorization": "Bearer ${AGENTRELAY_AGENT_TOKEN}",
+                "OAI-Sites-Authorization": "Bearer ${AGENTRELAY_SITES_GATEWAY_TOKEN}"
+              }
+            }
+          }
+        }
+      },
+      "cli": {
+        "command": "claude",
+        "remove": ["mcp", "remove", "--scope", "user", "agentrelay"],
+        "args": ["mcp", "add-json", "--scope", "user", "agentrelay", "{entry}"],
+        "missing": "Cannot start Claude Code. Install its CLI and check PATH."
+      }
+    },
+    {
+      "id": "codex",
+      "label": "Codex",
+      "description": {
+        "en": "Connects Codex straight to the Site with a personal token. Use it when the AgentRelay plugin is not available to the account.",
+        "zh": "用个人 Token 让 Codex 直接连接站点。账号用不了 AgentRelay 插件时使用。"
+      },
+      "ruleFile": "~/.codex/AGENTS.md",
+      "skillDir": "~/.agents/skills/agentrelay",
+      "skillCommand": "$agentrelay",
+      "secrets": ["AGENTRELAY_AGENT_TOKEN", "AGENTRELAY_SITES_GATEWAY_TOKEN"],
+      "persist": {
+        "AGENTRELAY_AGENT_TOKEN": "{agentToken}",
+        "AGENTRELAY_SITES_GATEWAY_HEADER": "Bearer {gatewayToken}"
+      },
+      "config": {
+        "format": "toml",
+        "file": "~/.codex/config.toml",
+        "table": "mcp_servers.agentrelay",
+        "template": "[mcp_servers.agentrelay]\nurl = \"{siteUrl}/api/agent/mcp\"\nbearer_token_env_var = \"AGENTRELAY_AGENT_TOKEN\"\nenv_http_headers = { \"OAI-Sites-Authorization\" = \"AGENTRELAY_SITES_GATEWAY_HEADER\" }"
+      }
+    },
+    {
+      "id": "antigravity",
+      "label": "Antigravity",
+      "description": {
+        "en": "Connects through the local bridge using credentials from OS storage. Needs Node.js and the installed client.",
+        "zh": "通过本地 bridge 和系统凭据库连接。需要 Node.js 和已安装的客户端。"
+      },
+      "ruleFile": "~/.gemini/GEMINI.md",
+      "skillDir": "~/.gemini/config/skills/agentrelay",
+      "skillCommand": "/agentrelay",
+      "secrets": ["AGENTRELAY_AGENT_TOKEN", "AGENTRELAY_SITES_GATEWAY_TOKEN"],
+      "persist": {
+        "AGENTRELAY_AGENT_TOKEN": "{agentToken}",
+        "AGENTRELAY_SITES_GATEWAY_TOKEN": "{gatewayToken}"
+      },
+      "bridge": true,
+      "config": {
+        "file": "~/.gemini/config/mcp_config.json",
+        "template": {
+          "mcpServers": {
+            "agentrelay": {
+              "command": "node",
+              "args": ["{bridgePath}"],
+              "env": { "AGENTRELAY_MCP_URL": "{siteUrl}/api/agent/mcp" }
+            }
+          }
+        }
+      },
+      "cli": {
+        "command": "agy",
+        "remove": ["mcp", "remove", "agentrelay"],
+        "args": ["mcp", "add", "-e", "AGENTRELAY_MCP_URL={endpoint}", "agentrelay", "node", "{bridgePath}"],
+        "missing": "Cannot start the Antigravity CLI (agy). Install it and check PATH."
+      }
+    },
+    {
+      "id": "deepseek-harness",
+      "label": "DeepSeek Harness",
+      "description": {
+        "en": "Connects the dsh desktop app and CLI through the local bridge using credentials from OS storage. Needs Node.js.",
+        "zh": "通过本地 bridge 和系统凭据库连接 dsh 桌面版和 CLI。需要 Node.js。"
+      },
+      "ruleFile": "~/.dsh/AGENTS.md",
+      "skillDir": "~/.dsh/skills/agentrelay",
+      "skillPlaceholder": true,
+      "skillCommand": "/agentrelay",
+      "home": { "variable": "DSH_HOME", "path": "~/.dsh" },
+      "secrets": ["AGENTRELAY_AGENT_TOKEN", "AGENTRELAY_SITES_GATEWAY_TOKEN"],
+      "persist": {
+        "AGENTRELAY_AGENT_TOKEN": "{agentToken}",
+        "AGENTRELAY_SITES_GATEWAY_TOKEN": "{gatewayToken}"
+      },
+      "bridge": true,
+      "bridgeCompatibility": ["core-schemas", "initialize-only"],
+      "config": {
+        "format": "yaml",
+        "file": "~/.dsh/cordis.patch.yml",
+        "rowId": "mcp-agentrelay",
+        "template": "- insert:\n    - id: mcp-agentrelay\n      name: \"@deepseek-ai/dsh-mcp-client\"\n      config:\n        serverName: agentrelay\n        transport: stdio\n        command: node\n        args: [\"{bridgePath}\", \"--core-schemas\", \"--initialize-only\"]\n        env:\n          AGENTRELAY_MCP_URL: \"{siteUrl}/api/agent/mcp\"\n          AGENTRELAY_AGENT_TOKEN: !!js process.env.AGENTRELAY_AGENT_TOKEN\n          AGENTRELAY_SITES_GATEWAY_TOKEN: !!js process.env.AGENTRELAY_SITES_GATEWAY_TOKEN"
+      }
+    }
+  ]
+}

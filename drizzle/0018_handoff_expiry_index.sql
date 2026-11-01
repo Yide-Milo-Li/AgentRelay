@@ -1,0 +1,1 @@
+CREATE INDEX `handoffs_owner_expiry` ON `handoffs` (`owner_id`,`expires_at`,`id`);

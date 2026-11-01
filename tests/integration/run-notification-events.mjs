@@ -1,0 +1,36 @@
+// Start a disposable built Worker with synthetic push settings and run a notification suite against it: the lifecycle suite by
+// default, or the script named on the command line (for example a browser check). Nothing is sent anywhere: the lifecycle suite
+// seeds a subscription whose address the sender refuses before making a request, and the browser checks never request a push.
+import { mkdirSync } from "node:fs";
+import path from "node:path";
+import { projectRoot } from "../../tooling/environment/project-root.mjs";
+import { runTestNode } from "../support/integration-process.mjs";
+import { localTestEnvironment, startLocalPreview } from "../support/local-preview.mjs";
+
+const directory = path.join(projectRoot, "outputs/verification", `notification-events-${new Date().toISOString().replace(/[:.]/g, "-")}`);
+mkdirSync(directory, { recursive: true });
+console.log(`Verification evidence: ${directory}`);
+const encode = bytes => Buffer.from(bytes).toString("base64url");
+const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+const vars = {
+  AGENTRELAY_WEB_PUSH_ENABLED: "1", AGENTRELAY_VAPID_SUBJECT: "https://example.com",
+  AGENTRELAY_VAPID_PUBLIC_KEY: encode(await crypto.subtle.exportKey("raw", pair.publicKey)),
+  AGENTRELAY_VAPID_PRIVATE_KEY: (await crypto.subtle.exportKey("jwk", pair.privateKey)).d,
+};
+const controller = new AbortController();
+const env = localTestEnvironment(directory);
+let preview;
+try {
+  const migrated = await runTestNode(["scripts/db/migrate-local.mjs", "--state-dir", env.AGENTRELAY_TEST_STATE], { env, label: "migrations", signal: controller.signal, timeoutMs: 240_000 });
+  if (migrated.code !== 0) throw new Error("Migrations failed.");
+  preview = await startLocalPreview(env, { label: "preview", vars, signal: controller.signal, timeoutMs: 900_000 });
+  const script = process.argv[2] ?? "tests/integration/verify-agentrelay-notification-events.mjs";
+  const suite = await runTestNode([script], { env: preview.env, label: "notification-suite", signal: controller.signal, timeoutMs: 300_000, onOutput: text => process.stdout.write(text) });
+  if (suite.code !== 0 || suite.timedOut) throw new Error(`Notification event suite failed: ${JSON.stringify(suite)}`);
+} catch (error) {
+  console.error(error.message);
+  process.exitCode = 1;
+} finally {
+  preview?.stop();
+  await preview?.done;
+}

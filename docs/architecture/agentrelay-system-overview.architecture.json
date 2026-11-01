@@ -1,0 +1,410 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "AgentRelay System Overview (bootstrap)",
+    "locale": "en",
+    "output": "docs/architecture/agentrelay-system-overview.html",
+    "quality_profile": "showcase",
+    "subtitle": "The source-linked overview is added in a later revision."
+  },
+  "components": [
+    {
+      "id": "member",
+      "type": "external",
+      "label": "Workspace member",
+      "sublabel": "browser",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "native-agent",
+      "type": "external",
+      "label": "ChatGPT / Codex",
+      "sublabel": "Site plugin",
+      "pos": [
+        470,
+        40
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "token-agent",
+      "type": "external",
+      "label": "Token agents",
+      "sublabel": "Claude Code, Antigravity",
+      "pos": [
+        900,
+        40
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "web-ui",
+      "type": "frontend",
+      "label": "Web UI",
+      "sublabel": "React 19 inbox",
+      "tag": "polls every 10s",
+      "pos": [
+        40,
+        170
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "local-client",
+      "type": "backend",
+      "label": "Local client",
+      "sublabel": "OS keyring + bridge",
+      "pos": [
+        900,
+        170
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "sites-gate",
+      "type": "security",
+      "label": "Sites sign-in gate",
+      "sublabel": "OAuth or gateway token",
+      "pos": [
+        440,
+        300
+      ],
+      "size": [
+        210,
+        64
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "cloud",
+      "label": "Worker bootstrap",
+      "sublabel": "vinext on workerd",
+      "pos": [
+        470,
+        440
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "rest-routes",
+      "type": "backend",
+      "label": "REST routes",
+      "sublabel": "/api/*",
+      "tag": "sameOrigin, 413 limits",
+      "pos": [
+        150,
+        580
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "auth",
+      "type": "security",
+      "label": "Workspace auth",
+      "sublabel": "resolves ownerId",
+      "pos": [
+        470,
+        580
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "mcp-adapter",
+      "type": "backend",
+      "label": "MCP adapter",
+      "sublabel": "5 tools, JSON-RPC",
+      "tag": "/mcp, /api/agent/mcp",
+      "pos": [
+        790,
+        580
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "services",
+      "type": "backend",
+      "label": "Server services",
+      "sublabel": "handoffs, devices, projects, tokens",
+      "tag": "CAS + requestKey",
+      "pos": [
+        420,
+        720
+      ],
+      "size": [
+        250,
+        68
+      ]
+    },
+    {
+      "id": "attachments",
+      "type": "backend",
+      "label": "Attachments",
+      "sublabel": "upload, bind, sweep",
+      "pos": [
+        150,
+        880
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "d1",
+      "type": "database",
+      "label": "Cloudflare D1",
+      "sublabel": "Drizzle, binding DB",
+      "pos": [
+        470,
+        880
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "push",
+      "type": "backend",
+      "label": "Web Push delivery",
+      "sublabel": "VAPID, 3 attempts",
+      "pos": [
+        770,
+        880
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "r2",
+      "type": "database",
+      "label": "Cloudflare R2",
+      "sublabel": "binding BUCKET",
+      "pos": [
+        150,
+        1020
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "push-service",
+      "type": "external",
+      "label": "Browser push service",
+      "sublabel": "to public/sw.js",
+      "pos": [
+        1030,
+        880
+      ],
+      "size": [
+        160,
+        60
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Sites-hosted Cloudflare Worker",
+      "wraps": [
+        "worker",
+        "rest-routes",
+        "auth",
+        "mcp-adapter",
+        "services",
+        "attachments",
+        "d1",
+        "push",
+        "r2"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "member-uses-ui",
+      "from": "member",
+      "to": "web-ui",
+      "label": "uses"
+    },
+    {
+      "id": "token-agent-to-client",
+      "from": "token-agent",
+      "to": "local-client",
+      "label": "stdio / header helper"
+    },
+    {
+      "id": "ui-to-gate",
+      "from": "web-ui",
+      "to": "sites-gate",
+      "label": "fetch /api/*",
+      "variant": "emphasis"
+    },
+    {
+      "id": "native-to-gate",
+      "from": "native-agent",
+      "to": "sites-gate",
+      "label": "MCP, Sites OAuth",
+      "variant": "emphasis"
+    },
+    {
+      "id": "client-to-gate",
+      "from": "local-client",
+      "to": "sites-gate",
+      "label": "Bearer + gateway token",
+      "variant": "security"
+    },
+    {
+      "id": "gate-to-worker",
+      "from": "sites-gate",
+      "to": "worker",
+      "label": "allowed request"
+    },
+    {
+      "id": "worker-to-rest",
+      "from": "worker",
+      "to": "rest-routes",
+      "label": "page + /api/*"
+    },
+    {
+      "id": "worker-to-mcp",
+      "from": "worker",
+      "to": "mcp-adapter",
+      "label": "JSON-RPC POST"
+    },
+    {
+      "id": "rest-to-auth",
+      "from": "rest-routes",
+      "to": "auth",
+      "label": "actorFrom",
+      "variant": "security"
+    },
+    {
+      "id": "mcp-to-auth",
+      "from": "mcp-adapter",
+      "to": "auth",
+      "label": "resolve actor",
+      "variant": "security"
+    },
+    {
+      "id": "auth-to-services",
+      "from": "auth",
+      "to": "services",
+      "label": "token hash lookup"
+    },
+    {
+      "id": "rest-to-services",
+      "from": "rest-routes",
+      "to": "services",
+      "label": "owner-scoped ops"
+    },
+    {
+      "id": "mcp-to-services",
+      "from": "mcp-adapter",
+      "to": "services",
+      "label": "same ops"
+    },
+    {
+      "id": "services-to-d1",
+      "from": "services",
+      "to": "d1",
+      "label": "db.batch, CAS"
+    },
+    {
+      "id": "services-to-attachments",
+      "from": "services",
+      "to": "attachments",
+      "label": "bind / release"
+    },
+    {
+      "id": "services-to-push",
+      "from": "services",
+      "to": "push",
+      "label": "progress events",
+      "variant": "dashed"
+    },
+    {
+      "id": "attachments-to-d1",
+      "from": "attachments",
+      "to": "d1",
+      "label": "rows"
+    },
+    {
+      "id": "attachments-to-r2",
+      "from": "attachments",
+      "to": "r2",
+      "label": "image bytes"
+    },
+    {
+      "id": "push-to-service",
+      "from": "push",
+      "to": "push-service",
+      "label": "Web Push",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Entry points",
+      "items": [
+        "Browsers and ChatGPT/Codex reach the Site through Sites sign-in",
+        "Token agents go through the local client, which adds the Agent Token and the Site's gateway token",
+        "HTTP and both MCP endpoints call the same owner-scoped operations"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Invariants",
+      "items": [
+        "Every query filters by ownerId, resolved only in src/server/auth",
+        "State changes are version-guarded (CAS, 409 on conflict)",
+        "Prompts, receipts and images are inert data, never executed"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Storage",
+      "items": [
+        "D1 holds handoffs, devices, projects, tokens, attachment rows and subscriptions",
+        "R2 holds original image bytes; object keys never leave the server",
+        "Expired handoffs and orphaned images are swept on later workspace use"
+      ]
+    }
+  ]
+}

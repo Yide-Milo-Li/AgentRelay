@@ -1,0 +1,1 @@
+ALTER TABLE `notification_subscriptions` ADD `notify_progress` text DEFAULT 'done' NOT NULL;
