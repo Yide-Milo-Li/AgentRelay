@@ -2,11 +2,16 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "AgentRelay System Overview (bootstrap)",
+    "title": "AgentRelay System Overview",
     "locale": "en",
     "output": "docs/architecture/agentrelay-system-overview.html",
     "quality_profile": "showcase",
-    "subtitle": "The source-linked overview is added in a later revision."
+    "repository": {
+      "url": "https://github.com/Yide-Milo-Li/AgentRelay.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "9a46715b23577860a7b08ca443ec410eea25bbaf"
+    }
   },
   "components": [
     {
@@ -21,6 +26,14 @@
       "size": [
         150,
         60
+      ],
+      "sources": [
+        {
+          "path": "README.md",
+          "line": 22,
+          "end_line": 26,
+          "label": "product model"
+        }
       ]
     },
     {
@@ -35,6 +48,14 @@
       "size": [
         150,
         60
+      ],
+      "sources": [
+        {
+          "path": "src/app/mcp/route.ts",
+          "line": 1,
+          "end_line": 6,
+          "label": "native /mcp"
+        }
       ]
     },
     {
@@ -49,6 +70,13 @@
       "size": [
         170,
         60
+      ],
+      "sources": [
+        {
+          "path": "README.md",
+          "line": 24,
+          "label": "token agents"
+        }
       ]
     },
     {
@@ -64,6 +92,20 @@
       "size": [
         150,
         64
+      ],
+      "sources": [
+        {
+          "path": "src/app/_components/AgentRelayApp.tsx",
+          "line": 146,
+          "end_line": 152,
+          "label": "inbox polling"
+        },
+        {
+          "path": "src/shared/http/client.ts",
+          "line": 3,
+          "end_line": 10,
+          "label": "fetch client"
+        }
       ]
     },
     {
@@ -78,6 +120,20 @@
       "size": [
         170,
         60
+      ],
+      "sources": [
+        {
+          "path": "tooling/agents/mcp-bridge.mjs",
+          "line": 55,
+          "end_line": 62,
+          "label": "adds both headers"
+        },
+        {
+          "path": "tooling/agents/credential-store.mjs",
+          "line": 31,
+          "end_line": 44,
+          "label": "keyring store"
+        }
       ]
     },
     {
@@ -92,6 +148,19 @@
       "size": [
         210,
         64
+      ],
+      "sources": [
+        {
+          "path": "docs/guides/agent-connections.md",
+          "line": 33,
+          "end_line": 35,
+          "label": "gateway token"
+        },
+        {
+          "path": "src/app/api/agent/mcp/route.ts",
+          "line": 6,
+          "label": "/mcp is OAuth only"
+        }
       ]
     },
     {
@@ -106,6 +175,13 @@
       "size": [
         150,
         60
+      ],
+      "sources": [
+        {
+          "path": "worker/index.ts",
+          "line": 1,
+          "end_line": 30
+        }
       ]
     },
     {
@@ -121,6 +197,20 @@
       "size": [
         170,
         64
+      ],
+      "sources": [
+        {
+          "path": "src/app/api/handoffs/route.ts",
+          "line": 1,
+          "end_line": 18,
+          "label": "handoffs route"
+        },
+        {
+          "path": "src/server/http/index.ts",
+          "line": 2,
+          "end_line": 16,
+          "label": "origin + size"
+        }
       ]
     },
     {
@@ -135,6 +225,20 @@
       "size": [
         150,
         64
+      ],
+      "sources": [
+        {
+          "path": "src/server/auth/index.ts",
+          "line": 10,
+          "end_line": 39,
+          "label": "actorFrom / Agent"
+        },
+        {
+          "path": "src/server/auth/workspace.ts",
+          "line": 7,
+          "end_line": 10,
+          "label": "shared owner"
+        }
       ]
     },
     {
@@ -150,6 +254,20 @@
       "size": [
         170,
         64
+      ],
+      "sources": [
+        {
+          "path": "src/server/mcp/index.ts",
+          "line": 38,
+          "end_line": 92,
+          "label": "handleMcp"
+        },
+        {
+          "path": "src/app/api/agent/mcp/route.ts",
+          "line": 1,
+          "end_line": 9,
+          "label": "token endpoint"
+        }
       ]
     },
     {
@@ -165,6 +283,25 @@
       "size": [
         250,
         68
+      ],
+      "sources": [
+        {
+          "path": "src/server/handoffs/index.ts",
+          "line": 178,
+          "end_line": 263,
+          "label": "create / change"
+        },
+        {
+          "path": "src/server/device-lifecycle/index.ts",
+          "line": 28,
+          "end_line": 54,
+          "label": "device batch"
+        },
+        {
+          "path": "src/server/agent-tokens/index.ts",
+          "line": 298,
+          "label": "resolveAgentToken"
+        }
       ]
     },
     {
@@ -179,6 +316,20 @@
       "size": [
         170,
         60
+      ],
+      "sources": [
+        {
+          "path": "src/server/attachments/index.ts",
+          "line": 33,
+          "end_line": 130,
+          "label": "upload + statements"
+        },
+        {
+          "path": "src/app/api/attachments/route.ts",
+          "line": 1,
+          "end_line": 4,
+          "label": "upload route"
+        }
       ]
     },
     {
@@ -193,6 +344,20 @@
       "size": [
         150,
         60
+      ],
+      "sources": [
+        {
+          "path": "src/server/db/client.ts",
+          "line": 6,
+          "end_line": 27,
+          "label": "getDb"
+        },
+        {
+          "path": "src/server/db/schema.ts",
+          "line": 5,
+          "end_line": 141,
+          "label": "tables"
+        }
       ]
     },
     {
@@ -207,6 +372,20 @@
       "size": [
         170,
         60
+      ],
+      "sources": [
+        {
+          "path": "src/server/handoffs/notification-delivery.ts",
+          "line": 11,
+          "end_line": 44,
+          "label": "deliverNotification"
+        },
+        {
+          "path": "src/server/connection-reminders/index.ts",
+          "line": 24,
+          "end_line": 50,
+          "label": "expiry reminders"
+        }
       ]
     },
     {
@@ -221,6 +400,14 @@
       "size": [
         170,
         60
+      ],
+      "sources": [
+        {
+          "path": "src/server/db/client.ts",
+          "line": 16,
+          "end_line": 25,
+          "label": "getBucket"
+        }
       ]
     },
     {
@@ -235,6 +422,14 @@
       "size": [
         160,
         60
+      ],
+      "sources": [
+        {
+          "path": "public/sw.js",
+          "line": 150,
+          "end_line": 160,
+          "label": "showNotification"
+        }
       ]
     }
   ],

@@ -219,7 +219,7 @@ Run `node tests/e2e/theme-preference.mjs` with `AGENTRELAY_TEST_URL` pointing to
 | **Runtime** | [Cloudflare Workers](https://workers.cloudflare.com/) / `workerd` | Managed edge execution container |
 | **Agent Protocol** | [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) | JSON-RPC 2.0 interface for AI agent integration |
 
-For a picture of how these pieces connect, open the interactive [system overview](docs/architecture/agentrelay-system-overview.html) in a browser. It is rendered from [`agentrelay-system-overview.architecture.json`](docs/architecture/agentrelay-system-overview.architecture.json). The bootstrap view does not yet include source links. The viewer includes Archify code and the JetBrains Mono font; their [licenses and notices](docs/architecture/archify-notices/NOTICE) accompany the diagram.
+For a picture of how these pieces connect, open the interactive [system overview](docs/architecture/agentrelay-system-overview.html) in a browser. It is rendered from [`agentrelay-system-overview.architecture.json`](docs/architecture/agentrelay-system-overview.architecture.json), and each component links to the source lines it was drawn from. The viewer includes Archify code and the JetBrains Mono font; their [licenses and notices](docs/architecture/archify-notices/NOTICE) accompany the diagram.
 
 ---
 
@@ -593,4 +593,4 @@ Browser notifications are optional and need four runtime values that `node scrip
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE).
+AgentRelay's original source is licensed under the [MIT License](LICENSE). The generated architecture viewer includes Archify code and the JetBrains Mono font under their [separate licenses and notices](docs/architecture/archify-notices/NOTICE). Dependencies retain their own licenses; some `sharp` platform packages include LGPL components. Review their terms when redistributing dependencies or compiled binaries.

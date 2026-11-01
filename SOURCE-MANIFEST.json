@@ -1,6 +1,6 @@
 {
   "version": "0.6.1",
-  "contentSha256": "65523d651008803023ef3134031eb34fff5ecfd4abb0ba110e85dfbf1f3de41e",
+  "contentSha256": "9ce63a337a3ddda1f58ae8be6b7995cdc9e362aa63680b2db595e917c5c834b1",
   "files": [
     {
       "file": ".gitattributes",
@@ -40,7 +40,7 @@
     },
     {
       "file": "AGENTS.md",
-      "sha256": "ee4cd81b4f34970e444d2d5da403dad2712b1927478cf44f8068abdf0e7fc7f8"
+      "sha256": "79bb7c2cb88693cdc290f3a32368da774e7e0427cbced3c6d7f84b757cf69d29"
     },
     {
       "file": "cloudflare-env.d.ts",
@@ -60,11 +60,11 @@
     },
     {
       "file": "docs/architecture/agentrelay-system-overview.architecture.json",
-      "sha256": "37978c534a77098a72932882d1b0c49e233deeec0ec82b98dea7a2e7fa97f7da"
+      "sha256": "f44f4adcba101574af3f2cc89763f40f4d3192b68a415fccbd10d6ce5289b91a"
     },
     {
       "file": "docs/architecture/agentrelay-system-overview.html",
-      "sha256": "fe93cb8ca3cbba0f38c7359b539dde04e9007ea9fd5112e4c30c309cdccfb4a6"
+      "sha256": "b87e65ea0b4b00f82f712d8f8549b3b9f3000ec0cc752e7cbbe87a0a6221d9f4"
     },
     {
       "file": "docs/architecture/decisions/0001-image-attachments.md",
@@ -328,7 +328,7 @@
     },
     {
       "file": "README.md",
-      "sha256": "9bf3e0c56321197dc67174d35d086064198f9378842dd2d0fb5a132c2b2b4fbc"
+      "sha256": "884bd08bcbb772b91986019cdb826908231c76670be93ca50e87878cb706e0a4"
     },
     {
       "file": "scripts/agents/agentrelay.mjs",
