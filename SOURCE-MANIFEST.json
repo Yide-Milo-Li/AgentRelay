@@ -1,6 +1,6 @@
 {
   "version": "0.6.1",
-  "contentSha256": "9ce63a337a3ddda1f58ae8be6b7995cdc9e362aa63680b2db595e917c5c834b1",
+  "contentSha256": "0492075a6cfb09d942110d296fb2495b8219dcb2bc239c7f29a4d1d8387540a6",
   "files": [
     {
       "file": ".gitattributes",
@@ -40,7 +40,7 @@
     },
     {
       "file": "AGENTS.md",
-      "sha256": "79bb7c2cb88693cdc290f3a32368da774e7e0427cbced3c6d7f84b757cf69d29"
+      "sha256": "9a65faf95d2b3632204a89b2a92744d0c67221cd913f6ee66aacfc97cca63de6"
     },
     {
       "file": "cloudflare-env.d.ts",
@@ -52,7 +52,7 @@
     },
     {
       "file": "CONTRIBUTING.md",
-      "sha256": "ef90fd54f7f4af602116d7cd098fd763d1098d43c2b228827301c0e8be7af0b5"
+      "sha256": "ee9b8e1579a2c913e339b506645f0902c183a1155c8ffe66e925475d1e3fd163"
     },
     {
       "file": "design/DESIGN.md",
@@ -91,8 +91,12 @@
       "sha256": "5559ef3e82b71b5cae50a14867bd5abd2a01b2c42d7e42cde7d5c6158d7505ae"
     },
     {
+      "file": "docs/guides/development.md",
+      "sha256": "d36e93f4beb3468b813ccc01f3d0f7b4edc5cad8d98447d0b3d5c0f8a4979bdc"
+    },
+    {
       "file": "docs/guides/first-deployment.md",
-      "sha256": "a415e499c1ef1e7517f7df902e6d68abb10350d05bc41f3fb1beed7310bc8d7b"
+      "sha256": "ca688881076f4779d2bbf8f5c742f6d0a99de9e356dc2f50c7982768b40b8fd0"
     },
     {
       "file": "docs/guides/image-handoffs.md",
@@ -115,12 +119,92 @@
       "sha256": "b3418b9efdee2e838f9680b460c7385c711625d594a19e957a6971f50dd038a8"
     },
     {
+      "file": "docs/images/agents-zh.webp",
+      "sha256": "fee2542bbda64634b8b084a70afe46b4c37e2d48f42bfae39fd0c3a092a6a531"
+    },
+    {
+      "file": "docs/images/agents.webp",
+      "sha256": "d39ea338eab9ead6d9bbe223a787c54c82c4763ee5331fba67de809a96930e79"
+    },
+    {
+      "file": "docs/images/inbox-dark.webp",
+      "sha256": "fbc73a6d1e5e88e7f73003d2cdfed964ff9bd85e669b790cfbf0fdf56829d6b8"
+    },
+    {
+      "file": "docs/images/inbox-light.webp",
+      "sha256": "31ae953fee9cfa654f3e1d8843ac59c482389dcd01a79f03452cd08822f8f1f5"
+    },
+    {
+      "file": "docs/images/inbox-zh-dark.webp",
+      "sha256": "768c69b9861f6c3b40031984e461dc4a0fe1cc878166c080cf9754aee6e9ffea"
+    },
+    {
+      "file": "docs/images/inbox-zh-light.webp",
+      "sha256": "8d6164d40bebd5534862867adc9a29bce244d8217a6da25340a35440956a9e96"
+    },
+    {
+      "file": "docs/images/mobile-dark.webp",
+      "sha256": "0bfb8ad1dab6fe42073f0e8cb10e490cfa084e8acc0dcb0f2ca67af04ac45a54"
+    },
+    {
+      "file": "docs/images/mobile-light.webp",
+      "sha256": "51c051be673a3bd06a31f9bd841397d093904d42b71d64bfb7f411a3a462038e"
+    },
+    {
+      "file": "docs/images/mobile-zh-dark.webp",
+      "sha256": "3f28f62f32abd33c598507479759419a24fdbfa2d0b478372539fbc0fb0602ab"
+    },
+    {
+      "file": "docs/images/mobile-zh-light.webp",
+      "sha256": "c881ed869c94effcc8e58991c29df0245fe744d19aef2ba4fee8c7e16d09f8a9"
+    },
+    {
+      "file": "docs/images/receipt-zh.webp",
+      "sha256": "0c4746f6b88abfbd8d1e3274ff2da9725ce3f88450d0a0c71bd3bef34dd5b1c6"
+    },
+    {
+      "file": "docs/images/receipt.webp",
+      "sha256": "a0af879628f9c793e296ac6c4bf2df6ca730849810c8bb73fccb25be19568e32"
+    },
+    {
       "file": "docs/operations/local-preview-transport.md",
       "sha256": "7548b77ba53354f3211fbfcd9f3ede6d318d1205f69bfd265780fa8a8b50d9e2"
     },
     {
       "file": "docs/operations/windows-node-crashes.md",
       "sha256": "b0499d05d5f745efc1b4154b684a01fdedf25aeb278d163cf65031f1d253db24"
+    },
+    {
+      "file": "docs/reference/devices-and-connections.md",
+      "sha256": "e828aca4ae900fac701c9966eaa9f28185f4fb18bc8ac9032cc749206ed23d64"
+    },
+    {
+      "file": "docs/reference/git-context.md",
+      "sha256": "35c2f5ca0e9b4eaf021a8f3dc946c23f7b1205bfabdaeaffa825463b60813a02"
+    },
+    {
+      "file": "docs/reference/images.md",
+      "sha256": "36d111f0f60ea1af6d82b8a5ddfcb0096e322dfc354ff11b7800ca6c9c92ad9a"
+    },
+    {
+      "file": "docs/reference/mcp-protocol.md",
+      "sha256": "840d217d265921e40dda672af9f7c1f8d31bc8db6539e13dfc748e177a381774"
+    },
+    {
+      "file": "docs/reference/projects.md",
+      "sha256": "45157d69a1cf2b7f3099de62aaf7d0d7c04eb85b83696d046023eba4cbd3d01f"
+    },
+    {
+      "file": "docs/reference/receipts-and-threads.md",
+      "sha256": "2f847acc3da178e3b8d5a2ee185955eca2e23652c7ca2ea3ce653ea336ad42ad"
+    },
+    {
+      "file": "docs/reference/security-invariants.md",
+      "sha256": "8fc618ae301e68bb3fd0a207753747019d19faded8315847c154ac964feaffe6"
+    },
+    {
+      "file": "docs/reference/shared-workspace.md",
+      "sha256": "4a7f87b279536bb802a6683ffccc25a67bfd47903672da2b0f2550fafa7d34d6"
     },
     {
       "file": "drizzle/0000_curious_nuke.sql",
@@ -316,7 +400,7 @@
     },
     {
       "file": "PRODUCT.md",
-      "sha256": "59d00fec16de8183152a126d8243b21470527994919d397d32685d45948e65ef"
+      "sha256": "941e293574cbd1971293fbe86d9de634c11847034c865fe4da755df7adf278b3"
     },
     {
       "file": "public/favicon.svg",
@@ -328,7 +412,11 @@
     },
     {
       "file": "README.md",
-      "sha256": "884bd08bcbb772b91986019cdb826908231c76670be93ca50e87878cb706e0a4"
+      "sha256": "ee95e168c4cad52da9ae7256e6c4fcc3f0914b7c1a1897d5c580fe269606ff0d"
+    },
+    {
+      "file": "README.zh-CN.md",
+      "sha256": "d0a2e7681d4b2a467a4fdbaa0cdc5069fa5ccc2c8ad1165f8a2a751f8b5ce22f"
     },
     {
       "file": "scripts/agents/agentrelay.mjs",
@@ -1656,7 +1744,7 @@
     },
     {
       "file": "tests/unit/agent-tokens.test.mjs",
-      "sha256": "871c933d238f041b7ada0cecec9ae6d4c3da8491a7d352fee9af87bc230e572f"
+      "sha256": "1ee66a68323e73cbd9637b4b4bf481bd12fab500d7a7a2ee4748e3627465ecd8"
     },
     {
       "file": "tests/unit/architecture.test.mjs",
@@ -1724,7 +1812,7 @@
     },
     {
       "file": "tests/unit/hosting-manifest.test.mjs",
-      "sha256": "7f8de8378ceae8b48bd1101fcb6cf42705b9ac17862dca533b41e8cd74079677"
+      "sha256": "7fa71cde6b90ea3707e228b860b8b50928af4f7b961051a6095be63ce0f33fab"
     },
     {
       "file": "tests/unit/image-inspection.test.mjs",
@@ -1876,7 +1964,7 @@
     },
     {
       "file": "tooling/agents/release-candidates.mjs",
-      "sha256": "490b3b48fb74e0b6d48730f7ffc3e89a0c035610a27de40b639487c7c107b65b"
+      "sha256": "b6a4a7600e5f0c612c7774523f917dc08cc066b40b2a51e683770c3dc601d352"
     },
     {
       "file": "tooling/agents/skill/agentrelay/references/handoff-content.md",

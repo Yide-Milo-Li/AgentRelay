@@ -1,0 +1,30 @@
+# Device registry and Agent connections
+
+Devices are registered per workspace (`owner_id`), so every trusted member sees and manages the same registry. A device has an immutable **id** (a readable slug: 1–32 characters of `a-z`, `0-9` and inner hyphens; `any`, `all` and `none` are reserved), an editable **name** (1–80 characters, no control characters) and an editable line **colour** (blue, amber, green, violet, teal, brown or neutral). Ids are unique per owner (the key is `owner_id` + `id`), names are unique per owner after NFKC normalisation, trimming and lower-casing, and a name may not equal another device's id (or the reverse), so any reference resolves to at most one device. Non-ASCII names such as 笔记本 get a generated `device-<4 base32>` id. An owner can register up to 50 devices.
+
+- **Handoff linkage**: `source_device`, `target_device` and `claimed_by` stay as name **snapshots**. Nullable `source_device_id`, `target_device_id` and `claimed_by_device_id` link to the registry without foreign keys. Inputs accept a device id (preferred) or a registered name, case-insensitively; any other text is stored as a plain name with a null id, so nothing that worked before returns a new 400. `any` is a reserved pseudo-target and is never stored as a row. Creating a device adopts legacy handoffs whose snapshot name matches it.
+- **Display**: the UI resolves ids through the registry, so a rename or recolour shows everywhere at once. A route whose device is gone falls back to the stored snapshot name with a heuristic colour. Sample rows carry no ids and always use heuristic colours.
+- **Concurrency**: device `PATCH` and `DELETE` require the latest `version` and return 409 when it is stale.
+- **`self`**: a reserved device reference (never an id or a name) that the MCP adapter replaces with the device the calling Agent connection is bound to, in `sourceDevice`, `targetDevice`, `device` and the `list_handoffs` filter. A connection that is not bound, the platform `/mcp` endpoint and the web routes answer `self` with 400 and ask for a device id. It only names a device: a connection still acts across the whole workspace, and an explicit id is accepted from any connection.
+- **Delete cascade**: `src/server/device-lifecycle/` runs one `db.batch` made of the statements each service provides for its own records: the handoff snapshots take the device's current name and the `*_device_id` links are cleared (handoffs service), the device's connections are unbound or, if the caller chooses, revoked with a `device_deleted` history entry each (agent-tokens service), and the device row is deleted last as the compare-and-swap (devices service). Detaching never bumps `handoffs.version`.
+- **Connections**: a token may be bound to a device for display and config generation only; it still authorizes the whole workspace. Only active connections can be renamed or rebound, revoking is idempotent, and permanent removal is allowed only for revoked or expired connections (enforced in the SQL `WHERE`). An owner can hold up to 100 active connections; the list shows the active ones first and the 100 most recent retired ones.
+
+| Route | Request | Success | Errors |
+| :--- | :--- | :--- | :--- |
+| `GET /api/workspace` | — | 200 `{ shared: true }`, or `{ shared: false, userId }` with the caller's own id while sharing is off | 401 |
+| `GET /api/devices` | — | 200 `{ devices }` | 401 |
+| `POST /api/devices` | `{ name, id?, line? }` | 201 `Device` | 400, 401, 403, 409, 413 |
+| `GET /api/devices/:id` | — | 200 `{ device, usage }` | 401, 404 |
+| `PATCH /api/devices/:id` | `{ version, name?, line? }` | 200 `Device` | 400 (including an attempt to change the id), 401, 403, 404, 409 |
+| `DELETE /api/devices/:id` | `{ version, connections?: "unbind" \| "revoke" }` | 200 `DeletedDevice` | 400, 401, 403, 404, 409 |
+| `GET /api/agent-tokens` | — | 200 `{ tokens }` (each with `deviceId`, `version`, `issuedByViewer`, `rotatedAt`, `clientProfile`, `lastClient`, and for retired ones `revokedByName` / `revokedReason`) | 401 |
+| `GET /api/agent-tokens/events` | `?limit=` (1–200, default 50), `?before=` (the previous `nextBefore`), `?tokenId=` | 200 `{ events, nextBefore }`, newest first | 400, 401 |
+| `POST /api/agent-tokens` | `{ name, expiresInDays?, deviceId?, clientProfile? }` (`clientProfile` is a lowercase profile id such as `codex`; only its shape is checked) | 201 with the one-time `token` | 400, 401, 403, 404, 409 (100 active) |
+| `PATCH /api/agent-tokens/:id` | `{ name?, deviceId?, expiresInDays?, acknowledgePermanentRisk?, version? }` (`expiresInDays` 1–365 counts from now; `null` is permanent and needs the acknowledgement) | 200 `TokenInfo` | 400, 401, 403, 404, 409 (revoked or expired, or a stale `version`) |
+| `POST /api/agent-tokens/:id/rotate` | `{ version? }` | 200 `TokenInfo` with the new one-time `token`; the old secret stops at once. Only the member who issued the connection may rotate it | 400, 401, 403 (not the issuer), 404, 409 |
+| `POST /api/agent-tokens/revoke` | `{ ids, reason?: "bulk" \| "offboarding" }` | 200 `{ revoked }`; all of the 1–100 usable ids or none | 400, 401, 403, 409 (an id is unknown, foreign or no longer usable) |
+| `DELETE /api/agent-tokens/:id` | optional `?version=` | 200 `TokenInfo` (revokes; repeating it is harmless and ignores `version`) | 400, 401, 403, 404, 409 (stale `version`) |
+| `DELETE /api/agent-tokens/:id?permanent=1` | — | 200 `{ id }` | 401, 403, 404, 409 (still active) |
+| `DELETE /api/agent-tokens?scope=inactive` | — | 200 `{ removed }` | 400, 401, 403 |
+
+Server and MCP error messages are written in English; the Chinese UI maps each one in `src/shared/i18n/describe-error.ts`. The MCP server still exposes exactly five tools; only their descriptions and optional fields mention device ids and images. Deploy order matters: apply `drizzle/0002_*.sql` before any code that reads the new columns.

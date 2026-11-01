@@ -1,0 +1,10 @@
+# Receipts and threads
+
+A handoff no longer ends silently on the receiving device. Three additions close the loop, all through the same five tools and the same owner-scoped operations:
+
+- **Receipt.** `complete_handoff` (and the browser's *Mark done with a note…*) can store a `result`: untrusted Markdown, at most 20,000 characters, stored exactly as sent. It is written by the completion's compare-and-swap, kept when the completion is undone (shown as *Previous result*), kept by a later completion that brings none, and cleared when the handoff returns to Ready. It goes into no inbox. `list_handoffs` returns only a 180-character preview and `complete_handoff` does not echo it; `get_handoff` and the detail pane show all of it.
+- **Reply.** `create_handoff` with `replyTo` creates an ordinary new handoff that points at its parent (`replyToId`) and its thread's root (`threadId`, null for a root). Title, target and project default from the parent (`Re: <title>`, the parent's sender, the parent's project). The parent must be active and in the same workspace; a foreign, missing or expired id answers with the same 404. A thread holds at most 100 handoffs; the check is a display bound and runs outside the creation batch. Deleting a parent never touches its replies.
+- **Thread.** `get_handoff` returns the thread's active handoffs as metadata (`id`, `title`, `status`, route, `replyToId`, `createdAt`, `hasResult`), oldest first. The web page draws the same list from the handoffs it has already loaded.
+- **Progress notifications.** The browsers bound to a handoff's source device hear about its claim and completion according to *Handoffs sent from here* (`notify_progress`: `off`, `done` by default, `all`). The push names only the handoff, its version and the step; the worker reads the title, project and claiming device with the person's session (`GET /api/notifications/handoffs/[id]?kind=progress`), and never the receipt.
+
+Storage counts a receipt as prompt text (`handoffs_owner_logical_v2`). `npm run test:integration:receipts` covers receipts and threads over both MCP endpoints and the browser routes.
