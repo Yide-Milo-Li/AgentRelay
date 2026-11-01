@@ -143,6 +143,7 @@ AgentRelay/
 |   |   `-- decisions/           # Architectural decisions with context and consequences
 |   |-- guides/                  # Developer and user task guides, including local development
 |   |-- reference/               # MCP protocol, data model, HTTP routes and security invariants
+|   |-- images/                  # README screenshots, captured from synthetic data on a local Worker
 |   |-- operations/              # Deployment, recovery, troubleshooting
 |   |-- plans/                   # Scoped work plans and acceptance criteria
 |   `-- archive/                 # Explicitly historical documents

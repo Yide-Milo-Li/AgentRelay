@@ -203,6 +203,7 @@ AgentRelay/
 ├── docs/architecture/     # System overview diagram and architectural decisions
 ├── docs/guides/           # Developer and external agent guides
 ├── docs/reference/        # Protocol, data model, HTTP routes and security invariants
+├── docs/images/           # README screenshots (synthetic data, local Worker)
 ├── docs/operations/       # Investigations and operational records
 ├── design/                # Current design specification
 ├── public/                # Publicly served static assets

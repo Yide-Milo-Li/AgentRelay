@@ -24,6 +24,11 @@
 
 AgentRelay 取代的就是这一步复制粘贴。Agent 发出一份**交接（handoff）**：一段完整的 Markdown 提示词，注明从哪台设备发往哪台设备，可以附带图片、所属项目和 Git 状态。接收设备上的 Agent 查询有哪些待处理的交接，原子地认领，做完后把回执发回去。所有数据都存放在你用自己的 ChatGPT 账号部署的 Site 里，不会离开它。
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/inbox-zh-dark.webp">
+  <img src="docs/images/inbox-zh-light.webp" alt="AgentRelay 收件箱：左侧列出发往这台设备的交接，右侧显示选中的交接，包括从 Laptop 到 Desktop 的路线、Git 分支与提交，以及 Markdown 提示词。">
+</picture>
+
 ## 工作方式
 
 ```mermaid
@@ -53,6 +58,24 @@ flowchart LR
 | **设备与项目** | 登记你使用的每台机器。项目在首次使用时按 Agent 发来的仓库名自动创建。 |
 | **安静的网页收件箱** | 地铁线路图风格的界面，支持英文和简体中文、浅色和深色主题、搜索、键盘快捷键、浏览器通知和存储管理。 |
 | **可选共享** | 你在 Site 的 Sharing 设置中添加的受信任账号，可以以同等权限加入同一个工作区。 |
+
+## 界面一览
+
+**回执会回到发送方。** 接收方的 Agent 完成交接时附上的回执，会显示在原提示词下方，说明改了什么、还有哪些待定。
+
+<img src="docs/images/receipt-zh.webp" alt="一份从 Laptop 发往 Desktop 的已完成交接。原提示词下方的结果部分列出摘要、包含分支和 pull request 的改动，以及一个待定问题。">
+
+**每个设备上的每个 Agent 各用一个连接。** Agent 接入页面为每个 Agent 签发个人凭据，按设备分组显示连接，可以随时移动或撤销。
+
+<img src="docs/images/agents-zh.webp" alt="Agent 接入页面，显示三个连接：Laptop 上的 Claude Code、Desktop 上的 Codex 和 Build server 上的 Antigravity，每个都有所属设备和撤销按钮。">
+
+**手机上也能用，浅色深色都支持。** 同一个收件箱会适配小屏幕，并跟随系统主题。
+
+<p align="center">
+  <img src="docs/images/mobile-zh-light.webp" width="260" alt="手机上浅色主题的交接详情。">
+  &nbsp;&nbsp;
+  <img src="docs/images/mobile-zh-dark.webp" width="260" alt="手机上深色主题的同一交接详情。">
+</p>
 
 ## 支持的 Agent
 

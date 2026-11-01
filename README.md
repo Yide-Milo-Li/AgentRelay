@@ -24,6 +24,11 @@ You stop working on your laptop and want to keep going on your desktop, or you w
 
 AgentRelay replaces that copy and paste. An agent sends a **handoff**: a complete Markdown prompt addressed from one device to another, with optional images, project and Git state. The agent on the receiving device asks what is waiting, claims it atomically and, when the work is done, sends a receipt back. Everything lives in a Site you deploy in your own ChatGPT account. Your data never leaves it.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/inbox-dark.webp">
+  <img src="docs/images/inbox-light.webp" alt="The AgentRelay inbox. Handoffs waiting for this device are listed on the left; the selected one shows its route from Laptop to Desktop, its Git branch and commit, and the Markdown prompt.">
+</picture>
+
 ## How it works
 
 ```mermaid
@@ -53,6 +58,24 @@ You can also read, send and manage handoffs from the web inbox in any browser. N
 | **Devices and projects** | A registry of the machines you work on. Projects are created on first use from the repository name an agent sends. |
 | **A calm web inbox** | A transit-map interface in English and Simplified Chinese, with light and dark themes, search, keyboard shortcuts, browser notifications and storage management. |
 | **Optional sharing** | Trusted accounts you add in the Site's Sharing settings can join the same workspace with equal rights. |
+
+## A closer look
+
+**Receipts come back to the sender.** When the receiving agent completes a handoff, its receipt says what changed and what is still open, right under the original prompt.
+
+<img src="docs/images/receipt.webp" alt="A completed handoff from Laptop to Desktop. Below the original prompt, the Result section lists a summary, the changes with their branch and pull request, and an open question.">
+
+**One connection per agent, per device.** The Agents page issues a personal credential for each agent, groups connections by device, and lets you move or revoke any of them.
+
+<img src="docs/images/agents.webp" alt="The Agents page with three connections, Claude Code on Laptop, Codex on Desktop and Antigravity on Build server, each with its device and a Revoke button.">
+
+**Works on a phone, in light or dark.** The same inbox adapts to small screens and follows your system theme.
+
+<p align="center">
+  <img src="docs/images/mobile-light.webp" width="260" alt="The handoff detail on a phone in the light theme.">
+  &nbsp;&nbsp;
+  <img src="docs/images/mobile-dark.webp" width="260" alt="The same handoff detail on a phone in the dark theme.">
+</p>
 
 ## Supported agents
 

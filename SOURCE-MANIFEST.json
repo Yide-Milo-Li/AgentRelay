@@ -1,6 +1,6 @@
 {
   "version": "0.6.1",
-  "contentSha256": "6c314ef1deca4b5d831f657caa641dae8423c3b4f2e04caafe4a389763527104",
+  "contentSha256": "71e7be304f81f72e9f00450bf1f3f03f5ec9b6107ff1c1cc36274898c230a876",
   "files": [
     {
       "file": ".gitattributes",
@@ -40,7 +40,7 @@
     },
     {
       "file": "AGENTS.md",
-      "sha256": "a78bb90836171201acd01133a6927b29b489cc13f1f4d98099b69ba8738eacf1"
+      "sha256": "9a65faf95d2b3632204a89b2a92744d0c67221cd913f6ee66aacfc97cca63de6"
     },
     {
       "file": "cloudflare-env.d.ts",
@@ -92,7 +92,7 @@
     },
     {
       "file": "docs/guides/development.md",
-      "sha256": "c4244f388243ee4d0a249c99afb928342de02a7e32b84831742a041077eb6a7b"
+      "sha256": "d36e93f4beb3468b813ccc01f3d0f7b4edc5cad8d98447d0b3d5c0f8a4979bdc"
     },
     {
       "file": "docs/guides/first-deployment.md",
@@ -117,6 +117,54 @@
     {
       "file": "docs/guides/storage-management.md",
       "sha256": "b3418b9efdee2e838f9680b460c7385c711625d594a19e957a6971f50dd038a8"
+    },
+    {
+      "file": "docs/images/agents-zh.webp",
+      "sha256": "fee2542bbda64634b8b084a70afe46b4c37e2d48f42bfae39fd0c3a092a6a531"
+    },
+    {
+      "file": "docs/images/agents.webp",
+      "sha256": "d39ea338eab9ead6d9bbe223a787c54c82c4763ee5331fba67de809a96930e79"
+    },
+    {
+      "file": "docs/images/inbox-dark.webp",
+      "sha256": "fbc73a6d1e5e88e7f73003d2cdfed964ff9bd85e669b790cfbf0fdf56829d6b8"
+    },
+    {
+      "file": "docs/images/inbox-light.webp",
+      "sha256": "31ae953fee9cfa654f3e1d8843ac59c482389dcd01a79f03452cd08822f8f1f5"
+    },
+    {
+      "file": "docs/images/inbox-zh-dark.webp",
+      "sha256": "768c69b9861f6c3b40031984e461dc4a0fe1cc878166c080cf9754aee6e9ffea"
+    },
+    {
+      "file": "docs/images/inbox-zh-light.webp",
+      "sha256": "8d6164d40bebd5534862867adc9a29bce244d8217a6da25340a35440956a9e96"
+    },
+    {
+      "file": "docs/images/mobile-dark.webp",
+      "sha256": "0bfb8ad1dab6fe42073f0e8cb10e490cfa084e8acc0dcb0f2ca67af04ac45a54"
+    },
+    {
+      "file": "docs/images/mobile-light.webp",
+      "sha256": "51c051be673a3bd06a31f9bd841397d093904d42b71d64bfb7f411a3a462038e"
+    },
+    {
+      "file": "docs/images/mobile-zh-dark.webp",
+      "sha256": "3f28f62f32abd33c598507479759419a24fdbfa2d0b478372539fbc0fb0602ab"
+    },
+    {
+      "file": "docs/images/mobile-zh-light.webp",
+      "sha256": "c881ed869c94effcc8e58991c29df0245fe744d19aef2ba4fee8c7e16d09f8a9"
+    },
+    {
+      "file": "docs/images/receipt-zh.webp",
+      "sha256": "0c4746f6b88abfbd8d1e3274ff2da9725ce3f88450d0a0c71bd3bef34dd5b1c6"
+    },
+    {
+      "file": "docs/images/receipt.webp",
+      "sha256": "a0af879628f9c793e296ac6c4bf2df6ca730849810c8bb73fccb25be19568e32"
     },
     {
       "file": "docs/operations/local-preview-transport.md",
@@ -364,11 +412,11 @@
     },
     {
       "file": "README.md",
-      "sha256": "efa7cd5cc0bbb1410b982e6923f17f3a77493dc123d1d99f5f6f359165fa3508"
+      "sha256": "ee95e168c4cad52da9ae7256e6c4fcc3f0914b7c1a1897d5c580fe269606ff0d"
     },
     {
       "file": "README.zh-CN.md",
-      "sha256": "2f8d180f6018a763749fbc51864f0c06166f64b850efab328477df981698d66a"
+      "sha256": "d0a2e7681d4b2a467a4fdbaa0cdc5069fa5ccc2c8ad1165f8a2a751f8b5ce22f"
     },
     {
       "file": "scripts/agents/agentrelay.mjs",
@@ -1916,7 +1964,7 @@
     },
     {
       "file": "tooling/agents/release-candidates.mjs",
-      "sha256": "4274c5264d7b8aa80271f7851922f466cf7401fb24b1530f89182f502d2a4d21"
+      "sha256": "b6a4a7600e5f0c612c7774523f917dc08cc066b40b2a51e683770c3dc601d352"
     },
     {
       "file": "tooling/agents/skill/agentrelay/references/handoff-content.md",
