@@ -21,7 +21,7 @@ import { dictionaries } from "@/shared/i18n/messages";
 import { ShortcutHint } from "@/components/ui/ShortcutHint";
 import KeyboardShortcuts from "./KeyboardShortcuts";
 import SettingsView, { type SettingsSection } from "./SettingsView";
-import SetupChecklist, { SetupProgress, type SetupActions } from "./SetupChecklist";
+import SetupChecklist, { SetupProgress, type SetupActions, type SetupNotifications } from "./SetupChecklist";
 import { setupEstablished, setupSteps } from "./setup-progress";
 import { useSetupRecord } from "./use-setup-record";
 import { StorageView, StorageIndicator, NotificationIndicator, useStorageSummary, useNotificationMessages, useNotificationSettings, useStaleNotificationCleanup } from "@/features/handoffs";
@@ -250,8 +250,14 @@ function AgentRelay({ displayName, initialHandoff, initialView }: { displayName:
     createHandoff: () => openCompose(),
   };
   const setupHidden = !demo && !loading && !error && !!setupRecord.dismissed && !setupRecord.done && !established;
+  // Notifications bind to a device, so the optional step waits until this browser has chosen one.
+  const boundDeviceId = notifications.settings?.subscription?.deviceId;
+  const setupNotifications: SetupNotifications | null = current.id ? {
+    control: notifications, deviceId: current.id, boundName: registry.devices.find(device => device.id === boundDeviceId)?.name ?? current.name,
+    openSettings: () => { setSettingsSection("notifications"); navigate("settings"); },
+  } : null;
   const setupProps = { steps, deviceName: current.name, otherName: registry.devices.find(device => device.id !== current.id)?.name ?? t.setup.otherDevice,
-    siteUrl: typeof window === "undefined" ? "" : window.location.origin, actions: setupActions, onDismiss: setup.dismiss };
+    siteUrl: typeof window === "undefined" ? "" : window.location.origin, actions: setupActions, notifications: setupNotifications, onDismiss: setup.dismiss };
   const deepLinkMissing = !!selectedId && !selectedId.startsWith("example") && !loading && !rows.some(r => r.id === selectedId);
 
   function navigate(next: View) {

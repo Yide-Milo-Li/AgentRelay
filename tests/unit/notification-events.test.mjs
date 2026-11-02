@@ -145,8 +145,8 @@ test("a failing push service never fails or delays the handoff", async () => {
   assert.equal((await service.getNotificationSettings(actor.owner, id)).subscription.lastError, "http-503");
 });
 
-test("an unconfigured Site neither queries subscriptions nor schedules work", async () => {
-  await fresh(); await subscribe("laptop-browser"); delete env.AGENTRELAY_WEB_PUSH_ENABLED;
+test("a Site with notifications switched off neither queries subscriptions nor schedules work", async () => {
+  await fresh(); await subscribe("laptop-browser"); env.AGENTRELAY_WEB_PUSH_ENABLED = "0";
   await send(); await flush();
   assert.deepEqual(push.requests, []); assert.equal(scheduled.length, 0);
 });

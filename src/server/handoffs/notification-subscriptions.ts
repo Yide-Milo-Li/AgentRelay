@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { and, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { getD1, getDb } from "@/server/db/client";
 import { handoffs, notificationSubscriptions } from "@/server/db/schema";
@@ -8,7 +7,8 @@ import { isReservedDeviceName } from "@/shared/formatting/device-identity";
 import { AgentRelayError } from "@/server/core/agent-relay-error";
 import type { HandoffProgress, NotificationEvent, NotificationHandoffInfo, NotificationProgressInfo, NotificationSettings } from "@/shared/contracts/notifications";
 import { browserIdOf, notificationInput, notificationPatch } from "./notification-validation";
-import { deliverNotification, type DeliveryResult, type VapidConfig } from "./notification-delivery";
+import { deliverNotification, type DeliveryResult } from "./notification-delivery";
+import { pushConfig } from "./push-keys";
 
 const mine = (owner: string, browserId: string) => and(eq(notificationSubscriptions.ownerId, owner), eq(notificationSubscriptions.browserId, browserId));
 const fields = {
@@ -23,13 +23,12 @@ const fields = {
 /** The most other browsers the settings list; a workspace with more than this has stale subscriptions to clear. */
 const MAX_LISTED = 50;
 
-export function vapidConfig(): VapidConfig | null {
-  if (env.AGENTRELAY_WEB_PUSH_ENABLED !== "1" || !env.AGENTRELAY_VAPID_PUBLIC_KEY || !env.AGENTRELAY_VAPID_PRIVATE_KEY || !env.AGENTRELAY_VAPID_SUBJECT) return null;
-  return { publicKey: env.AGENTRELAY_VAPID_PUBLIC_KEY, privateKey: env.AGENTRELAY_VAPID_PRIVATE_KEY, subject: env.AGENTRELAY_VAPID_SUBJECT };
-}
-
-export async function getNotificationSettings(owner: string, inputId: unknown): Promise<NotificationSettings> {
-  const browserId = browserIdOf(inputId), config = vapidConfig();
+/**
+ * This browser's settings and the workspace's other browsers. `origin` is the Site's own address, passed when a browser
+ * reads its settings: it lets the first reading make the workspace's push key pair, so nothing has to be configured.
+ */
+export async function getNotificationSettings(owner: string, inputId: unknown, origin?: string): Promise<NotificationSettings> {
+  const browserId = browserIdOf(inputId), config = await pushConfig(owner, origin);
   const [row] = await getDb().select(fields).from(notificationSubscriptions).where(mine(owner, browserId));
   // Members share one workspace with equal rights, so each can see and remove the others' browsers, by display name only.
   const others = await getDb().select({ browserId: notificationSubscriptions.browserId, deviceId: notificationSubscriptions.deviceId, label: notificationSubscriptions.label,
@@ -40,7 +39,7 @@ export async function getNotificationSettings(owner: string, inputId: unknown): 
 }
 
 export async function saveNotificationSubscription(owner: string, input: Record<string, unknown>, actor?: Pick<Actor, "userId" | "name">) {
-  if (!vapidConfig()) throw new AgentRelayError("Browser notifications are not configured on this Site.", 503);
+  if (!(await pushConfig(owner))) throw new AgentRelayError("Browser notifications are not configured on this Site.", 503);
   const draft = notificationInput(input);
   await requireDevice(owner, draft.deviceId);
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(draft.endpoint));
@@ -140,7 +139,7 @@ export function buildNotificationEvent(handoff: Pick<NotificationHandoffInfo, "i
 
 /** A test is a real push to this browser. With a handoff id it announces that handoff exactly as an arrival would, which acceptance runs use. */
 export async function sendNotificationTest(owner: string, inputId: unknown, handoffId?: string) {
-  const browserId = browserIdOf(inputId), config = vapidConfig();
+  const browserId = browserIdOf(inputId), config = await pushConfig(owner);
   if (!config) throw new AgentRelayError("Browser notifications are not configured on this Site.", 503);
   const [row] = await getDb().select().from(notificationSubscriptions).where(and(mine(owner, browserId), isNull(notificationSubscriptions.disabledAt)));
   if (!row) throw new AgentRelayError("Enable notifications in this browser first.", 404);

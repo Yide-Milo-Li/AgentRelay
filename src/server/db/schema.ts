@@ -33,6 +33,14 @@ export const notificationSubscriptions = sqliteTable("notification_subscriptions
   index("notification_subscriptions_owner_device").on(t.ownerId, t.deviceId),
   foreignKey({ columns: [t.ownerId, t.deviceId], foreignColumns: [devices.ownerId, devices.id] }).onDelete("cascade")]);
 
+// The workspace's own VAPID key pair, made by the Worker the first time a browser reads the notification settings, so a
+// Site can send notifications from its first deployment. Runtime values, when all set, take precedence over this row.
+// The private key is a secret: it never leaves the server, and only the public key reaches browsers.
+export const pushKeys = sqliteTable("push_keys", {
+  ownerId: text("owner_id").primaryKey(), publicKey: text("public_key").notNull(), privateKey: text("private_key").notNull(),
+  subject: text("subject").notNull(), createdAt: integer("created_at").notNull(),
+});
+
 // Projects that handoffs are filed under. Ids are opaque; `name_key` (separators and case folded) decides sameness.
 // A handoff naming an unknown project creates it, so rows appear without any registration step.
 export const projects = sqliteTable("projects", {

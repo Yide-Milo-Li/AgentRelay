@@ -232,4 +232,4 @@ Publish with the Sites plugin rather than raw `wrangler deploy`, and never re-cr
 4. **Applies migrations**: pending migrations in `drizzle/` run before the Worker is uploaded.
 5. **Confirms**: polls the deployment status and reports the live URL.
 
-Browser notifications are optional and need four runtime values that `node scripts/notifications/generate-vapid.mjs --subject <https address or mailto address> --out <file outside this checkout>` generates once; see the [notifications guide](notifications.md#set-up-a-site).
+Browser notifications need no setup: the Worker makes the workspace's push key pair the first time a browser opens the notification settings and stores it in D1 (`push_keys`). A pair set as runtime values (`node scripts/notifications/generate-vapid.mjs --subject <https address or mailto address> --out <file outside this checkout>`) takes precedence, and `AGENTRELAY_WEB_PUSH_ENABLED=0` switches the feature off; see the [notifications guide](notifications.md#push-keys).

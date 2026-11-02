@@ -213,6 +213,9 @@ svg { flex-shrink: 0; }
 .notification-details dl { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: 6px 24px; margin: 12px 0 0; font-size: 13.5px; }
 .notification-details dt { color: var(--muted); }
 .notification-details dd { margin: 0; overflow-wrap: anywhere; }
+.notification-missing { margin-top: 6px; font-size: 13px; color: var(--ink-2); }
+.notification-missing summary { cursor: pointer; width: fit-content; padding: 2px 0; }
+.notification-missing ul { display: grid; gap: 4px; margin: 6px 0 0; padding-left: 18px; color: var(--muted); line-height: 1.55; }
 .other-browsers { margin: 0; padding: 0; list-style: none; }
 .other-browsers .setting-row { margin-top: 0; padding: 14px 0; border-bottom: 1px solid var(--hair); }
 .setting-footnote { margin-top: 28px; }
@@ -676,6 +679,10 @@ button.wizard-step:focus-visible { outline: 2px solid var(--ink); outline-offset
 .setup-body p { margin-top: 4px; max-width: 52ch; color: var(--ink-2); font-size: 14px; line-height: 1.6; }
 .setup-body p.muted { color: var(--muted); }
 .setup-said { display: block; margin-top: 2px; font-size: 12.5px; }
+/* The optional notification step: the same row as a numbered step, with a bell for a number, never the current step. */
+.setup-optional { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 14px; padding: 14px 0; border-top: 1px solid var(--hair); }
+.setup-optional[data-state="done"] .setup-mark { border-color: var(--ink); background: var(--ink); color: var(--surface); }
+.setup-tag { margin-left: 8px; color: var(--muted); font-size: 12px; font-weight: 500; }
 .setup-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 12px; }
 .setup-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--hair); }
 .setup-foot .link:only-child { margin-left: auto; }

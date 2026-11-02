@@ -11,6 +11,7 @@ const options = { stubs, inProject: true };
 const validation = await loadTypeScriptModule("src/server/handoffs/notification-validation.ts", options);
 const { deliverNotification } = await loadTypeScriptModule("src/server/handoffs/notification-delivery.ts", options);
 const service = await loadTypeScriptModule("src/server/handoffs/notification-subscriptions.ts", options);
+const pushKeys = await loadTypeScriptModule("src/server/handoffs/push-keys.ts", options);
 const { createDevice, deleteDevice } = await loadTypeScriptModule("src/server/device-lifecycle/index.ts", options);
 const { createHandoff } = await loadTypeScriptModule("src/server/handoffs/index.ts", options);
 const uuid = () => crypto.randomUUID();
@@ -121,11 +122,64 @@ test("notification metadata omits prompt text and images, and checks current tar
   await assert.rejects(service.getNotificationHandoff(actor.owner, handoff.id, id), error => error.status === 404);
 });
 
-test("missing VAPID configuration leaves notification registration disabled", async () => {
-  await fresh(); delete env.AGENTRELAY_WEB_PUSH_ENABLED;
-  const settings = await service.getNotificationSettings(actor.owner, uuid());
+test("AGENTRELAY_WEB_PUSH_ENABLED=0 switches notifications off, even with keys", async () => {
+  await fresh(); env.AGENTRELAY_WEB_PUSH_ENABLED = "0";
+  const settings = await service.getNotificationSettings(actor.owner, uuid(), "https://relay.example");
   assert.equal(settings.available, false); assert.equal(settings.publicKey, null);
   await assert.rejects(service.saveNotificationSubscription(actor.owner, input()), error => error.status === 503);
+  assert.equal(db.prepare("SELECT count(*) AS n FROM push_keys").get().n, 0);
+});
+
+/** No runtime values at all, as on a Site's first deployment. */
+async function freshWithoutKeys() {
+  await fresh();
+  for (const name of ["AGENTRELAY_WEB_PUSH_ENABLED", "AGENTRELAY_VAPID_PUBLIC_KEY", "AGENTRELAY_VAPID_PRIVATE_KEY", "AGENTRELAY_VAPID_SUBJECT"]) delete env[name];
+}
+
+test("without runtime values, a browser's first settings reading makes the workspace's own key pair and keeps it", async () => {
+  await freshWithoutKeys();
+  // Delivery and other readers never make a pair: a workspace without one has no subscriptions to reach.
+  assert.equal((await service.getNotificationSettings(actor.owner, uuid())).available, false);
+  await assert.rejects(service.saveNotificationSubscription(actor.owner, input()), error => error.status === 503);
+  const first = await service.getNotificationSettings(actor.owner, uuid(), "https://relay.example");
+  assert.equal(first.available, true);
+  assert.equal(Buffer.from(first.publicKey, "base64url").byteLength, 65);
+  assert.ok(!JSON.stringify(first).includes(db.prepare("SELECT private_key FROM push_keys WHERE owner_id = ?").get(actor.owner).private_key), "the private key never reaches a browser");
+  assert.equal((await service.getNotificationSettings(actor.owner, uuid(), "https://relay.example")).publicKey, first.publicKey);
+  assert.equal(db.prepare("SELECT subject FROM push_keys WHERE owner_id = ?").get(actor.owner).subject, "https://relay.example");
+  const saved = await service.saveNotificationSubscription(actor.owner, input());
+  assert.equal(saved.available, true); assert.ok(saved.subscription);
+  // Each workspace has its own pair.
+  assert.notEqual((await service.getNotificationSettings("workspace-b", uuid(), "https://relay.example")).publicKey, first.publicKey);
+});
+
+test("a generated pair signs real pushes, and a local address gets an https contact instead", async () => {
+  await freshWithoutKeys();
+  const local = await pushKeys.pushConfig(actor.owner, "http://127.0.0.1:5173");
+  assert.equal(local.subject, "https://localhost");
+  let authorization = null;
+  const result = await deliverNotification(destination, { type: "agentrelay.test", eventId: uuid() }, local, { fetchImpl: async (_url, init) => {
+    authorization = new Headers(init.headers).get("authorization"); return new Response(null, { status: 201 });
+  } });
+  assert.equal(result.accepted, true); assert.match(authorization, new RegExp(`^vapid t=.+, k=${local.publicKey}$`));
+});
+
+test("first readings that race keep a single pair", async () => {
+  await freshWithoutKeys();
+  const keys = await Promise.all(Array.from({ length: 5 }, () => pushKeys.pushConfig(actor.owner, "https://relay.example")));
+  assert.equal(new Set(keys.map(key => key.publicKey)).size, 1);
+  assert.equal(db.prepare("SELECT count(*) AS n FROM push_keys WHERE owner_id = ?").get(actor.owner).n, 1);
+});
+
+test("runtime values take precedence over a stored pair", async () => {
+  await freshWithoutKeys();
+  const stored = await pushKeys.pushConfig(actor.owner, "https://relay.example");
+  Object.assign(env, { AGENTRELAY_VAPID_PUBLIC_KEY: vapid.publicKey, AGENTRELAY_VAPID_PRIVATE_KEY: vapid.privateKey, AGENTRELAY_VAPID_SUBJECT: vapid.subject });
+  const settings = await service.getNotificationSettings(actor.owner, uuid(), "https://relay.example");
+  assert.equal(settings.publicKey, vapid.publicKey); assert.notEqual(settings.publicKey, stored.publicKey);
+  // An incomplete set of runtime values does not count, so the stored pair stays in use.
+  delete env.AGENTRELAY_VAPID_SUBJECT;
+  assert.equal((await service.getNotificationSettings(actor.owner, uuid())).publicKey, stored.publicKey);
 });
 
 test("a browser that lost its site storage re-enables without colliding with its own earlier subscription", async () => {

@@ -11,6 +11,15 @@ import { permissionGuide } from "../notification-state";
 
 type Props = { control: NotificationControl; devices: readonly Device[]; currentDeviceId: string | null; notify: (text: string) => void };
 
+/** The checks for a test notification that never appeared. Folded, because most tests do appear. */
+function MissingHelp() {
+  const m = useLang().t.notifications.missing;
+  return <details className="notification-missing">
+    <summary>{m.summary}</summary>
+    <ul><li>{m.focus}</li><li>{m.mac}</li><li>{m.running}</li><li>{m.details}</li></ul>
+  </details>;
+}
+
 /**
  * Settings › Notifications. The state is one sentence in words, never a coloured pill; the options stay visible while
  * notifications are off, disabled, so the person can see what they would get before granting permission. A note that
@@ -19,7 +28,7 @@ type Props = { control: NotificationControl; devices: readonly Device[]; current
 export default function NotificationSettingsView({ control, devices, currentDeviceId, notify }: Props) {
   const { t, locale, errorText } = useLang(), n = t.notifications;
   const { state, settings } = control, row = settings?.subscription ?? null, on = state === "on";
-  const [picked, setPicked] = useState<string | null>(null), [testSent, setTestSent] = useState(false);
+  const [picked, setPicked] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<NotificationReceipt | null>(null), [opened, setOpened] = useState(false);
   // Looking at this page once is enough to retire the footer reminder.
   useEffect(() => { markNotificationHintSeen(); }, []);
@@ -38,19 +47,15 @@ export default function NotificationSettingsView({ control, devices, currentDevi
   const statusText = state === "loading" ? n.status.loading : state === "on" ? n.status.on(deviceName(row?.deviceId ?? chosen)) + (row?.lastAcceptedAt ? ` · ${n.delivered(relative(row.lastAcceptedAt))}` : "")
     : state === "unsupported" ? (control.reason === "api" ? n.status.unsupportedApi : n.status.unsupported) : n.status[state];
   const failing = on && !!row?.lastError && (!row.lastAcceptedAt || (row.lastAttemptAt ?? 0) > row.lastAcceptedAt);
+  // Turning on sends a test at once, so the first thing the person reads afterwards is that it is on its way.
+  const welcome = on && !failing && control.lastTest?.trigger === "enabled", tested = on && control.lastTest?.trigger === "manual";
   // Permission steps name the browser's own controls; they replace the general note, which says the same thing less exactly.
   const guideKey = permissionGuide(state, control.prompt), guide = guideKey && control.browser ? n.guide[control.browser] : null;
-  const note = guide && guideKey ? guide[guideKey] : state === "off" ? (control.hint === "removed" ? n.notes.removed : n.notes.off) : state === "unavailable" ? n.notes.unavailable
-    : state === "blocked" ? n.notes.blocked : state === "reconnect" ? n.notes.reconnect : failing ? n.notes.failed : null;
+  const note = guide && guideKey ? guide[guideKey] : state === "off" ? (control.hint === "removed" ? n.notes.removed : chosen ? n.notes.off(deviceName(chosen)) : null)
+    : state === "unavailable" ? n.notes.unavailable : state === "blocked" ? n.notes.blocked : state === "reconnect" ? n.notes.reconnect
+    : failing ? n.notes.failed : welcome ? n.notes.welcome : null;
 
   const disabled = control.busy || !on;
-  const sendTest = async () => {
-    setTestSent(false);
-    if (!(await control.test())) return;
-    setTestSent(true);
-    // Give the push a moment to arrive, then read the Site's and the worker's records again.
-    setTimeout(() => { void control.refresh(); }, 4000);
-  };
 
   return <>
     <section className="setting-group" aria-labelledby="setting-notifications">
@@ -60,6 +65,7 @@ export default function NotificationSettingsView({ control, devices, currentDevi
           <strong>{n.title}</strong>{guide && guideKey !== "blocked" && <InfoTip label={t.infoAbout(n.title)}><p>{guide.quiet}</p></InfoTip>}
           <p role="status" data-state={state}>{statusText}</p>
           {note && <p className="notification-note" aria-live="polite">{note}</p>}
+          {welcome && <MissingHelp />}
         </div>
         {state === "off" && <button type="button" className="btn primary" disabled={control.busy || !chosen} onClick={() => void control.enable(chosen)}>{n.turnOn}</button>}
         {state === "reconnect" && <button type="button" className="btn primary" disabled={control.busy || !row} onClick={() => void control.enable(row?.deviceId ?? chosen)}>{n.reconnectAction}</button>}
@@ -113,8 +119,11 @@ export default function NotificationSettingsView({ control, devices, currentDevi
       </div>
 
       <div className="setting-row">
-        <div className="setting-text"><strong>{n.test}</strong><InfoTip label={t.infoAbout(n.test)}><p>{n.testNote}</p></InfoTip><p role="status">{testSent ? n.testSent : ""}</p></div>
-        <button type="button" className="btn" disabled={disabled} onClick={() => void sendTest()}>{n.sendTest}</button>
+        <div className="setting-text">
+          <strong>{n.test}</strong><InfoTip label={t.infoAbout(n.test)}><p>{n.testNote}</p></InfoTip><p role="status">{tested ? n.testSent : ""}</p>
+          {tested && <MissingHelp />}
+        </div>
+        <button type="button" className="btn" disabled={disabled} onClick={() => void control.test()}>{n.sendTest}</button>
       </div>
 
       <details className="notification-details" onToggle={event => setOpened(event.currentTarget.open)}>
