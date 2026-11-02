@@ -62,10 +62,11 @@ The runner records applied migrations in a `_agentrelay_migrations` table, so ru
 | `0016_progress_notifications.sql` | `notify_progress` (default `done`) on browser notification subscriptions: what a browser hears when a handoff sent from its device is claimed or completed |
 | `0017_handoff_git_context.sql` | Nullable `git_branch` and `git_base_commit` on handoffs: the code state the sender stopped at, set only on creation |
 | `0018_handoff_expiry_index.sql` | Index on owner, expiry and ID, read by the sweep that deletes expired handoffs |
+| `0019_push_keys.sql` | `push_keys`: the workspace's Web Push key pair and contact, one row per owner, written by the Worker the first time a browser opens the notification settings |
 
 This runner covers the local database only. On a Site, the Sites tooling applies the pending migrations before it uploads the Worker, so a deployment needs no manual database step (see the [first deployment guide](first-deployment.md)).
 
-`0002`, `0005`, `0006`, `0007`, `0008`, `0009`, `0010`, `0011`, `0012` and `0014` only add tables, indexes, and nullable or defaulted columns, and `0013` only inserts missing history rows, so existing handoffs and tokens stay valid and the previous Worker version keeps working against the migrated database (it ignores the new tables; images that code deletes without releasing them are reclaimed by the next cleanup). It must be applied before code that reads the new columns runs: locally by `db:migrate:local`, on Sites by the deployment itself. When modifying `src/server/db/schema.ts`, run `npm run db:generate`, review the generated SQL in `drizzle/` (reject any table-rebuild statement), and apply pending migrations locally.
+`0002`, `0005`, `0006`, `0007`, `0008`, `0009`, `0010`, `0011`, `0012`, `0014`, `0015`, `0016`, `0017`, `0018` and `0019` only add tables, indexes, and nullable or defaulted columns, and `0013` only inserts missing history rows, so existing handoffs and tokens stay valid and the previous Worker version keeps working against the migrated database (it ignores the new tables; images that code deletes without releasing them are reclaimed by the next cleanup). It must be applied before code that reads the new columns runs: locally by `db:migrate:local`, on Sites by the deployment itself. When modifying `src/server/db/schema.ts`, run `npm run db:generate`, review the generated SQL in `drizzle/` (reject any table-rebuild statement), and apply pending migrations locally.
 
 ## 3. Local Dev Server
 

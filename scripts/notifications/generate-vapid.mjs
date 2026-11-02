@@ -1,4 +1,4 @@
-// Generate the VAPID key pair that turns on browser notifications for a Site.
+// Generate a VAPID key pair to set as a Site's runtime values. Optional: without them the Worker makes and stores its own pair.
 // Usage: node scripts/notifications/generate-vapid.mjs --subject <https://your-site | mailto:you@example.com> [--out <file outside the repository>]
 // Without --out the four runtime values are printed once to stdout. With --out they are written to a new file that only you can
 // read, and only the public key is printed. The private key is a secret: it is never logged, and the file is refused inside this checkout.
@@ -26,5 +26,5 @@ if (options.out) {
   catch (error) { fail(error.message); }
 } else {
   console.log(formatEnv(values).trimEnd());
-  console.error("The private key above is a secret. Store it only in the Site's runtime configuration, never in the repository, and do not generate a new pair on a Site that already has subscribers: they are tied to the public key.");
+  console.error("The private key above is a secret. Store it only in the Site's runtime configuration, never in the repository. Keep one pair for the life of the Site where you can: after a change each browser subscribes again on its next visit, and pushes sent in between are lost.");
 }

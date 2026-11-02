@@ -1,6 +1,6 @@
 {
-  "version": "0.6.1",
-  "contentSha256": "0492075a6cfb09d942110d296fb2495b8219dcb2bc239c7f29a4d1d8387540a6",
+  "version": "0.6.2",
+  "contentSha256": "59fc3376b3802ca7f3b03b6783417e8caaa965c90f4189be04d38efb2010d3b2",
   "files": [
     {
       "file": ".gitattributes",
@@ -56,7 +56,7 @@
     },
     {
       "file": "design/DESIGN.md",
-      "sha256": "082cc991af3abea6df58aa0d519178d18cccfa5f7e6ab51413e3954eb1f47d05"
+      "sha256": "980d483d89ab4d2dda479945bc8bdb20a9850067054a5cbc5620f96c5a29abf1"
     },
     {
       "file": "docs/architecture/agentrelay-system-overview.architecture.json",
@@ -68,11 +68,11 @@
     },
     {
       "file": "docs/architecture/decisions/0001-image-attachments.md",
-      "sha256": "9b192266201bd960faf6ada530a0f8b245d2080c31db85cb8ce48ccf82da0a82"
+      "sha256": "aa135b79ebff8f2a2fafd32cc85a6a3cc95a7de0d82aa87bd3e119628c0eafb1"
     },
     {
       "file": "docs/guides/agent-connections.md",
-      "sha256": "2dfeaf01d6e4c0b601f64930a5f8171ee856671afa9bbb953865db7f2795f27e"
+      "sha256": "2d95500bc0db1a6ffbe18164937b2f83215ceaec31a1c3fb4e772aa84da32eed"
     },
     {
       "file": "docs/guides/antigravity-connection.md",
@@ -92,15 +92,15 @@
     },
     {
       "file": "docs/guides/development.md",
-      "sha256": "d36e93f4beb3468b813ccc01f3d0f7b4edc5cad8d98447d0b3d5c0f8a4979bdc"
+      "sha256": "f9a6c24a7a05d5d0d3563091da5622f4f79dbf3805904334a33d1a3dc20483ec"
     },
     {
       "file": "docs/guides/first-deployment.md",
-      "sha256": "ca688881076f4779d2bbf8f5c742f6d0a99de9e356dc2f50c7982768b40b8fd0"
+      "sha256": "b478195906d176908695eb338f5f92534a9c5feef56d36aa7955189f36388f81"
     },
     {
       "file": "docs/guides/image-handoffs.md",
-      "sha256": "afbc486137c78a26797787d2e8c18133a3c537e5f68bc15e58aa1617c88a1ac8"
+      "sha256": "8d249674d21d4ff7d9362831eccfb48915da24a900cfa42e1b5a284ba60e8b4c"
     },
     {
       "file": "docs/guides/keyboard-shortcuts.md",
@@ -112,7 +112,7 @@
     },
     {
       "file": "docs/guides/notifications.md",
-      "sha256": "ede0b19f32ff8ac634f366ae758d134cbe2ec60dfa634dee83a9afa2f9119994"
+      "sha256": "532afd41b6c8085f65d5706476c0bbfcd76cac83559e3779194ee17efaf8fa9a"
     },
     {
       "file": "docs/guides/storage-management.md",
@@ -176,7 +176,7 @@
     },
     {
       "file": "docs/reference/devices-and-connections.md",
-      "sha256": "e828aca4ae900fac701c9966eaa9f28185f4fb18bc8ac9032cc749206ed23d64"
+      "sha256": "406fb45ceef2b08f1e58766bf76175d42c5e525af61a31d165421fbf882d5222"
     },
     {
       "file": "docs/reference/git-context.md",
@@ -184,11 +184,11 @@
     },
     {
       "file": "docs/reference/images.md",
-      "sha256": "36d111f0f60ea1af6d82b8a5ddfcb0096e322dfc354ff11b7800ca6c9c92ad9a"
+      "sha256": "1eade2b4e2bd774ea10b493acf471964167a3724a1b8dab24bfaf048524e4943"
     },
     {
       "file": "docs/reference/mcp-protocol.md",
-      "sha256": "840d217d265921e40dda672af9f7c1f8d31bc8db6539e13dfc748e177a381774"
+      "sha256": "977f833dbe00ff93cdb6f270c3e06579e894e76780a079700a35c6f7aaf6d000"
     },
     {
       "file": "docs/reference/projects.md",
@@ -283,6 +283,10 @@
       "sha256": "adf62f527d87abaa2a6efaf44e027df60f5008e3ed814316b56582c359524b44"
     },
     {
+      "file": "drizzle/0019_push_keys.sql",
+      "sha256": "e702789add7bde96fb28157682a78109fc90d43141889fd375c62f1918e89ff8"
+    },
+    {
       "file": "drizzle/meta/0000_snapshot.json",
       "sha256": "166de237870f62a95780744b588f214137d74150c4286dfebbedf9ca770ba12b"
     },
@@ -359,8 +363,12 @@
       "sha256": "f998f0ebabdb0b5fa380862e1ad06e614777b960b362b13e0437b10b03260a27"
     },
     {
+      "file": "drizzle/meta/0019_snapshot.json",
+      "sha256": "456ce30592c24a5f7fc0e96a8ce53d3762397d87ebda56fece12118e4a2535e3"
+    },
+    {
       "file": "drizzle/meta/_journal.json",
-      "sha256": "2be57c2cf1af7ef1b100f87302c770cc534fec95f29334b9f4d443140ff38dad"
+      "sha256": "c6cef9ca4cc4cdc7e2ad94b7e389ca0c2b584cf850c2e097946854d3f3a9f917"
     },
     {
       "file": "drizzle.config.ts",
@@ -400,7 +408,7 @@
     },
     {
       "file": "PRODUCT.md",
-      "sha256": "941e293574cbd1971293fbe86d9de634c11847034c865fe4da755df7adf278b3"
+      "sha256": "41c42e3a0503ae2d5e60c9d37592e6f603c21138467679cb8a739cd95d3c52ea"
     },
     {
       "file": "public/favicon.svg",
@@ -488,7 +496,7 @@
     },
     {
       "file": "scripts/notifications/generate-vapid.mjs",
-      "sha256": "3e3484d7e6b7b268c82f42930e4784501b6807fc6c297066d82213d1f563b900"
+      "sha256": "bab3487850b6ca5e8b682a6a65aa035e913901395f1f63951cdcfb48b91451b1"
     },
     {
       "file": "scripts/npm-install.mjs",
@@ -620,7 +628,7 @@
     },
     {
       "file": "src/app/api/notifications/route.ts",
-      "sha256": "ef7d2a8e2e7f5fba46355f08b3aa8975d6870f42d438a0c6e8f71e4d5eadd65e"
+      "sha256": "1e0c2ed827b5e55e1e91ddeb8b4bf76c9ae375b3c00360b59f0cafcdbfa02699"
     },
     {
       "file": "src/app/api/notifications/test/route.ts",
@@ -668,7 +676,7 @@
     },
     {
       "file": "src/app/globals.css",
-      "sha256": "5716a972a78bb49c05f825de7666e53708e097fd69b105fb208b0fda7c53e41b"
+      "sha256": "9ec125489d13eb13a01860e4148690029e57d79816207bfa089a423a7fb2b837"
     },
     {
       "file": "src/app/layout.tsx",
@@ -684,7 +692,7 @@
     },
     {
       "file": "src/app/_components/AgentRelayApp.tsx",
-      "sha256": "60e46129245824892023ba3bce8fa0e97bb82549e6507c696f496fc3df5442b4"
+      "sha256": "05056a35fca44c556be926d432bb47352db667d04871467375ed004ddf48726b"
     },
     {
       "file": "src/app/_components/KeyboardShortcuts.tsx",
@@ -700,7 +708,7 @@
     },
     {
       "file": "src/app/_components/SetupChecklist.tsx",
-      "sha256": "a7f8a21e5593e06cd7d377ced99328fb58c3b7e3f5cc73f3387ab0a7775b39f1"
+      "sha256": "f247d3d26338fd43e62e56aa93f104700819e5d84eb6c1240d312657a406eaad"
     },
     {
       "file": "src/app/_components/ThemeSetting.tsx",
@@ -1144,7 +1152,7 @@
     },
     {
       "file": "src/features/handoffs/components/NotificationSettingsView.tsx",
-      "sha256": "55887db6794dad5e2764f9396bb6bf44c72cd77de027ff6b840c63440914da52"
+      "sha256": "6dc0d451044ddbf4d8f016cfe1f4708f1ac1d4ea394f1c79d780886935aad97c"
     },
     {
       "file": "src/features/handoffs/components/ProjectCombobox.tsx",
@@ -1192,7 +1200,7 @@
     },
     {
       "file": "src/features/handoffs/hooks/use-notification-settings.ts",
-      "sha256": "f1270f8ceead9d1a63242fabca93289367682bab2865fb0b718a0f4512f4de40"
+      "sha256": "7c3a1e3dbfb9258e52fd6d8b57007664c22052eb5434bee7d8ae8eb318a055ac"
     },
     {
       "file": "src/features/handoffs/hooks/use-storage-summary.ts",
@@ -1308,7 +1316,7 @@
     },
     {
       "file": "src/server/db/schema.ts",
-      "sha256": "993ce8f9196d33ffa9403aeb49895c76e101457835db27a221e764392596ad05"
+      "sha256": "22c1b9e8532fab869394fe14fea439abedb80b3a11634680026e31ab17759b4d"
     },
     {
       "file": "src/server/device-lifecycle/index.ts",
@@ -1340,15 +1348,19 @@
     },
     {
       "file": "src/server/handoffs/notification-events.ts",
-      "sha256": "431e9ab71f454d362b50ff80f82488f3832c9dcf2d21e83cc9dfdbf9f4c70b1d"
+      "sha256": "a0da426c0d7d376f61b7dc9bab519d7a90f51d03f41f844a35c5c62c70c5b90f"
     },
     {
       "file": "src/server/handoffs/notification-subscriptions.ts",
-      "sha256": "872bd646457a4e031eca7613685c91dc8bc0b4f65e7fb2c4787fdcb207a14c08"
+      "sha256": "28e0b00a51a902a8b6cb81677f9d7fcd4892d80e7c380500c724c6c96cc03e01"
     },
     {
       "file": "src/server/handoffs/notification-validation.ts",
       "sha256": "d2fbb2f7a6b41ad70e3521e44902379d55dda92f50bc3c951a8e353ee501633e"
+    },
+    {
+      "file": "src/server/handoffs/push-keys.ts",
+      "sha256": "96c110c4fe177e7c2f20e41db22bc8666025215f7404c13af18248783a370f2f"
     },
     {
       "file": "src/server/handoffs/receipt-validation.ts",
@@ -1508,7 +1520,7 @@
     },
     {
       "file": "src/shared/i18n/en.ts",
-      "sha256": "a64b56fa1338ed0dc2dc22fbd9ed96ece8eb7632e3084e19a5070978eb4e3ec6"
+      "sha256": "f9fcb9adc5cc83349c00340852fb97956fa67f995ba0da1fa1bb6a6b757528dd"
     },
     {
       "file": "src/shared/i18n/identity-en.ts",
@@ -1532,7 +1544,7 @@
     },
     {
       "file": "src/shared/i18n/zh.ts",
-      "sha256": "09fba73a1e5bd457aa54c6e421732255c6695b514bfac117ef55c350d9248b1e"
+      "sha256": "72b03bdd9cf8e1ed7a668fd558ce7c2a1f59cb9e6bb6b3aa32b2f7950f8df2b0"
     },
     {
       "file": "src/shared/images/inspect-image.mjs",
@@ -1572,7 +1584,7 @@
     },
     {
       "file": "tests/e2e/notification-settings.mjs",
-      "sha256": "1e848b4231015499a6bccc0d03b4bc44cf5efa3e118068bf5703e5f00d597ee0"
+      "sha256": "c46f1b493fbc09a595224613a875a77d80fd0ac719148f2680451f26d140b587"
     },
     {
       "file": "tests/e2e/project-organization.mjs",
@@ -1604,7 +1616,7 @@
     },
     {
       "file": "tests/integration/run-notification-events.mjs",
-      "sha256": "d60ceef8ccb5d2149329b9539fe56ab89078a495de4d4776ea0a1b90523dbb40"
+      "sha256": "d8def2c1bf3fba15e9ecbca64387068c5b219425db1de670b475e9b9bebf261a"
     },
     {
       "file": "tests/integration/run-suites.mjs",
@@ -1740,7 +1752,7 @@
     },
     {
       "file": "tests/unit/agent-skill.test.mjs",
-      "sha256": "274b8814aa3a3f52807e260e07b86f83e8bf3d00b3ef1850248e1eb5c60a1d1e"
+      "sha256": "0718c419d494772d6d626d83db6c97667f741817f7a1a087f66d547bd4bc8dfe"
     },
     {
       "file": "tests/unit/agent-tokens.test.mjs",
@@ -1860,7 +1872,7 @@
     },
     {
       "file": "tests/unit/notification-events.test.mjs",
-      "sha256": "8e13afc400c3c3732f50fad7a5f4ef479dcb6ba3fe7efd602c783803ac193b2a"
+      "sha256": "bcb8a9ece1554972a03c1aa07c9d8149536fc541d9b150daed4bab21b447eb90"
     },
     {
       "file": "tests/unit/notification-preferences.test.mjs",
@@ -1880,7 +1892,7 @@
     },
     {
       "file": "tests/unit/notifications.test.mjs",
-      "sha256": "203af0ebce6898f97d9f9274609a60c908f4a74b905e75986f1b8c1b9f2e9e7c"
+      "sha256": "1ada3bd9a469c61b24ac153d0df41ab5c39645e76a7075b804f3fb5b382f6edf"
     },
     {
       "file": "tests/unit/project-identity.test.mjs",
@@ -1920,7 +1932,7 @@
     },
     {
       "file": "tooling/agents/active-connection.mjs",
-      "sha256": "849850556d8a7182c2b0d744ee690fa50829f9e214af6e99b0ce7db2677b828b"
+      "sha256": "430b561179e87a075394c825edf6ab8261248a7201e0e1da4e281a73743f4600"
     },
     {
       "file": "tooling/agents/client-bootstrap.mjs",
@@ -1932,7 +1944,7 @@
     },
     {
       "file": "tooling/agents/client-install.mjs",
-      "sha256": "13469a51f5160039ae432e8caef1d15c57b1802dc3b33ef0f97033625886c6c3"
+      "sha256": "c4ef4246cef5efdcc6e3ab38a538d9886cb22a5d773302ed84738d5ec7106b70"
     },
     {
       "file": "tooling/agents/client.mjs",
