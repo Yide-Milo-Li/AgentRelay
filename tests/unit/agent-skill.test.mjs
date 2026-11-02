@@ -5,8 +5,9 @@ import os from "node:os";
 import path from "node:path";
 import yaml from "js-yaml";
 import { connect, refreshRules, retireSkills, setupSkill, setupSummary, skillStatus } from "../../tooling/agents/client.mjs";
-import { applyFileChanges } from "../../tooling/agents/client-config.mjs";
+import { applyFileChanges, connectionConfig, helperCommand } from "../../tooling/agents/client-config.mjs";
 import { readManifest, saveManifest } from "../../tooling/agents/credential-store.mjs";
+import { namesConnection } from "../../tooling/agents/active-connection.mjs";
 import { CLIENT_FILES, CLIENT_VERSION } from "../../tooling/agents/client-install.mjs";
 import { SKILL_FILES, SKILL_MARKER, inspectSkill, planSkill, planSkillRemoval, refreshSkills, renderSkill, samePath, withoutConflicts } from "../../tooling/agents/skill-install.mjs";
 import { renderDeviceRule, renderSkillRule } from "../../src/shared/formatting/device-rule.mjs";
@@ -357,6 +358,24 @@ test("the skill command installs this checkout's client first, so the skill neve
     assert.equal(inspectSkill(f.dir).version, CLIENT_VERSION);
     assert.ok(setupSummary(result).includes(`Client:        updated from 0.2.1 to ${CLIENT_VERSION}`));
   } finally { f.close(); }
+});
+
+test("an agent config names a connection only through --connection, never through a path that contains its id", () => {
+  // Temporary and install folders can contain any short id, as "agentrelay-skill-xc1q" contains c1.
+  const launcher = "/tmp/agentrelay-skill-xc1q/client/agentrelay.mjs", node = "/opt/c1/node";
+  const configs = [
+    JSON.stringify(connectionConfig({ profile: "claude-code", endpoint: "https://example.test/api/agent/mcp", id: "c2", launcher, node })),
+    JSON.stringify(connectionConfig({ profile: "claude-code", endpoint: "https://example.test/api/agent/mcp", id: "c2", launcher, node, transport: "direct", platform: "win32" })),
+    connectionConfig({ profile: "codex", endpoint: "https://example.test/api/agent/mcp", id: "c2", launcher, node }),
+    connectionConfig({ profile: "codex", endpoint: "https://example.test/api/agent/mcp", id: "c2", launcher, node, transport: "direct", platform: "linux" }),
+    connectionConfig({ profile: "deepseek-harness", endpoint: "https://example.test/api/agent/mcp", id: "c2", launcher, node }),
+    helperCommand(node, launcher, "c2", "win32"),
+  ];
+  for (const text of configs) {
+    assert.ok(namesConnection(text, "c2"), text);
+    assert.equal(namesConnection(text, "c1"), false, text);
+  }
+  assert.equal(namesConnection(JSON.stringify({ args: ["--connection", "c20"] }), "c2"), false);
 });
 
 test("the skill command acts only on the agent's active connection", async () => {
