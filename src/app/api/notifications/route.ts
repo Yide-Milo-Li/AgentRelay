@@ -3,7 +3,7 @@ import { body, failure, json, sameOrigin } from "@/server/http";
 import { deleteNotificationSubscription, getNotificationSettings, saveNotificationSubscription, updateNotificationSubscription } from "@/server/handoffs";
 export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
-  try { return json(await getNotificationSettings(actorFrom(request).owner, new URL(request.url).searchParams.get("browserId"))); }
+  try { const url = new URL(request.url); return json(await getNotificationSettings(actorFrom(request).owner, url.searchParams.get("browserId"), url.origin)); }
   catch (error) { return failure(error); }
 }
 export async function PUT(request: Request) {

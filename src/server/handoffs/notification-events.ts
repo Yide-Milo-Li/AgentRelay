@@ -5,7 +5,8 @@ import { notificationSubscriptions } from "@/server/db/schema";
 import { isReservedDeviceName } from "@/shared/formatting/device-identity";
 import { deliverNotification } from "./notification-delivery";
 import type { HandoffProgress, NotificationEvent } from "@/shared/contracts/notifications";
-import { buildNotificationEvent, buildProgressEvent, recordDelivery, vapidConfig } from "./notification-subscriptions";
+import { buildNotificationEvent, buildProgressEvent, recordDelivery } from "./notification-subscriptions";
+import { pushConfig, pushSwitchedOff } from "./push-keys";
 
 /** `created` is a new handoff; `requeued` is one put back to Ready after it was claimed or finished. */
 export type NotificationReason = "created" | "requeued";
@@ -26,10 +27,11 @@ function afterResponse(task: Promise<unknown>) {
  * the inbox stays the source of truth. The returned promise settles when delivery is over, for tests.
  */
 export function notifyHandoffReady(owner: string, handoff: ReadyHandoff, reason: NotificationReason, dependencies: Dependencies = {}): Promise<void> {
-  const config = vapidConfig();
-  if (!config) return Promise.resolve();
+  if (pushSwitchedOff()) return Promise.resolve();
   const deliver = dependencies.deliver ?? deliverNotification;
   const task = (async () => {
+    const config = await pushConfig(owner);
+    if (!config) return;
     const toAnyDevice = !handoff.targetDeviceId && isReservedDeviceName(handoff.targetDevice);
     // A name that is not a registered device (and not "any device") has no browser bound to it.
     if (!toAnyDevice && !handoff.targetDeviceId) return;
@@ -56,10 +58,11 @@ export type ProgressedHandoff = { id: string; version: number; sourceDeviceId: s
  * `notifyHandoffReady` it never throws and never rejects.
  */
 export function notifyHandoffProgress(owner: string, handoff: ProgressedHandoff, progress: HandoffProgress, dependencies: Dependencies = {}): Promise<void> {
-  const config = vapidConfig();
-  if (!config || !handoff.sourceDeviceId || handoff.claimedByDeviceId === handoff.sourceDeviceId) return Promise.resolve();
+  if (pushSwitchedOff() || !handoff.sourceDeviceId || handoff.claimedByDeviceId === handoff.sourceDeviceId) return Promise.resolve();
   const deliver = dependencies.deliver ?? deliverNotification;
   const task = (async () => {
+    const config = await pushConfig(owner);
+    if (!config) return;
     const rows = await getDb().select().from(notificationSubscriptions).where(and(
       eq(notificationSubscriptions.ownerId, owner), isNull(notificationSubscriptions.disabledAt), eq(notificationSubscriptions.deviceId, handoff.sourceDeviceId!),
       progress === "claimed" ? eq(notificationSubscriptions.notifyProgress, "all") : ne(notificationSubscriptions.notifyProgress, "off"),
@@ -82,7 +85,7 @@ const listensForExpiry = (owner: string) => and(eq(notificationSubscriptions.own
 
 /** Whether any browser in the workspace wants expiry reminders at all, so a sweep can stop before it uses any up. */
 export async function expiryRemindersWanted(owner: string) {
-  if (!vapidConfig()) return false;
+  if (!(await pushConfig(owner))) return false;
   const [row] = await getDb().select({ browserId: notificationSubscriptions.browserId }).from(notificationSubscriptions).where(listensForExpiry(owner)).limit(1);
   return !!row;
 }
@@ -93,10 +96,11 @@ export async function expiryRemindersWanted(owner: string) {
  * the worker reads the name with the person's session. Like handoff events it never throws.
  */
 export function notifyConnectionExpiring(owner: string, connection: ExpiringConnection, dependencies: Dependencies = {}): Promise<void> {
-  const config = vapidConfig();
-  if (!config) return Promise.resolve();
+  if (pushSwitchedOff()) return Promise.resolve();
   const deliver = dependencies.deliver ?? deliverNotification;
   const task = (async () => {
+    const config = await pushConfig(owner);
+    if (!config) return;
     const rows = await getDb().select().from(notificationSubscriptions).where(and(listensForExpiry(owner),
       connection.deviceId === null ? undefined : or(eq(notificationSubscriptions.notifyExpiry, "all"), eq(notificationSubscriptions.deviceId, connection.deviceId)),
     )).orderBy(asc(notificationSubscriptions.createdAt)).limit(MAX_DESTINATIONS);

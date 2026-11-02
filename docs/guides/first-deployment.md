@@ -2,7 +2,7 @@
 
 This guide takes a fresh clone of AgentRelay to a live Site in your own ChatGPT account, and to your first handoff between two devices. The deployment workflow is intended to update the same Site and apply only pending database migrations; review the verification limits below before upgrading.
 
-In the flow this guide supports, Codex with the Sites tools and access to your Site does every Sites step: deploying, and reading the Site's gateway token. Other devices need no Codex. The guide follows the workflow documented by the Sites skill. Earlier live acceptance covered a first private deployment, a Windows token-to-plugin handoff and redeployment of the same saved version. That acceptance predates the framework and toolchain upgrade; the upgraded build has not been deployed or retested on physical devices. The remaining limits are listed below.
+In the flow this guide supports, Codex with the Sites tools and access to your Site does every Sites step: deploying, and reading the Site's gateway token. Other devices need no Codex. The guide follows the workflow documented by the Sites skill. Earlier live acceptance covered a first private deployment, a Windows token-to-plugin handoff and redeployment of the same saved version. That acceptance predates the framework and toolchain upgrade. The upgraded build has since been deployed once as a new private Site, where only browser notifications were checked; the handoff and agent flows have not been rerun on it. The remaining limits are listed below.
 
 ## What you need
 
@@ -87,13 +87,7 @@ Keep this first run synthetic; do not publish private prompts or credentials. Lo
 
 ## Optional next steps
 
-- **Browser notifications.** To get a system notification when a handoff arrives, even with no AgentRelay tab open (desktop Chrome or Edge), generate the Site's push keys once on your own machine and give them to Codex as runtime values:
-
-  ```bash
-  node scripts/notifications/generate-vapid.mjs --subject https://<your-site>.chatgpt.site --out <a new file outside this checkout>
-  ```
-
-  Then ask Codex: *Read the four values from that file and set them as runtime values on my AgentRelay Site without printing any of them, then redeploy. The private key is a secret.* Delete the file afterwards or keep it in a password manager, and do not generate a new pair for a Site that already has subscribers. After the redeploy, open **Settings › Notifications** in each browser and choose **Turn on**. The [notifications guide](notifications.md) has the details.
+- **Browser notifications.** Already available, with nothing to configure: to get a system notification when a handoff arrives, even with no AgentRelay tab open (desktop Chrome or Edge), choose **Turn on notifications** in the setup checklist or **Settings › Notifications › Turn on** in each browser. The Site makes its own push keys and keeps them in its database; to keep the private key out of the database instead, set your own pair as runtime values. The [notifications guide](notifications.md#push-keys) explains both.
 - **Sharing.** Add trusted accounts in the Site's Sharing settings, then use **Settings › General › Workspace › Share this workspace** for the request to give Codex. See [Shared Workspace](../reference/shared-workspace.md). Sites Sharing and Agent Token revocation are independent; see [Agent connections](agent-connections.md#remove-access).
 - **Images.** See [image handoffs](image-handoffs.md).
 
@@ -114,5 +108,6 @@ A failed deployment can still have applied some migrations. Do not edit or delet
 - Access denial to an already shared, previously connected Site was not established: its existing sharing settings allowed the test account to enter. An owner-observed Inbox and Done search found no synthetic test records there. This is not an exhaustive database check, and that prior Site's address was not independently matched to the original checkout's Site identity.
 - On a second physical macOS device, sign-in and device selection passed before testing paused. Plugin installation, device-rule setup and actual Mac tool calls remain unverified. No specific Mac fault was reported.
 - First deployment reported no migration error, and read-only inspection found the expected application tables and receipt/thread/Git-context columns. Individual migration ledger entries and index definitions were not exposed for inspection; their exact state is not independently verified. No manual migration was run.
+- On 2026-11-02 a first deployment of the upgraded build to a new private Site with an empty runtime environment reported no migration problem. On Windows, Chrome and Edge turned notifications on with the push keys the Worker generated, and a cross-device handoff produced a notification with every AgentRelay tab closed (owner-observed). Agent connections, claims and redeployment were not repeated on that build, and upgrading a Site that already holds data from an earlier build has no hosted verification.
 - Claude Code, Codex, Antigravity and DeepSeek Harness have configuration adapters. The live Windows evidence above covers Codex's bridge path only. Direct header-helper invocation, the other agents' fresh-account paths and macOS/Linux local token-client acceptance remain open.
 - Sharing the Site's plugin with other members is documented for Business and Enterprise workspaces; sharing between personal accounts is not promised.

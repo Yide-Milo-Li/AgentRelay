@@ -4,17 +4,17 @@ AgentRelay can show a system notification when a handoff arrives for a device, e
 
 ## Who can use it
 
-Notifications are available on **desktop Chrome and desktop Edge** and are limited to them. Other browsers, and phones and tablets, see Settings › Notifications with every control disabled and a line saying so. Earlier live closed-tab acceptance covered Windows with Chrome before the framework and toolchain upgrade; the upgraded build has not been tested with a real subscription. Edge is accepted by the server but has not yet been tried with a real subscription, and macOS and Linux are untested.
+Notifications are available on **desktop Chrome and desktop Edge** and are limited to them. Other browsers, and phones and tablets, see Settings › Notifications with every control disabled and a line saying so. Live acceptance on 2026-11-02 covered the upgraded build on a freshly deployed Site with no push runtime values, so the Worker generated its own keys: on Windows, Chrome and Edge each showed the test notification after **Turn on**, and a handoff created in Edge for the Chrome device reached Chrome with every AgentRelay tab closed. These results were observed by the owner. macOS and Linux are untested.
 
-A Site also needs push keys before any browser can turn notifications on. See [Set up a Site](#set-up-a-site).
+A Site makes its own push keys, so notifications can be turned on from its first deployment without any setup. See [Push keys](#push-keys).
 
 ## Turn them on
 
-1. Open **Settings › Notifications** and choose the device this browser should hear about. It starts as the device picked in the top bar, and afterwards only this page changes it.
+1. Open **Settings › Notifications** and choose the device this browser should hear about. It starts as the device picked in the top bar, and afterwards only this page changes it. While a new workspace still shows the setup checklist, its optional *Get notified in this browser* step does the same for the device this browser is, without opening Settings.
 2. Choose **Turn on** and allow notifications when the browser asks. The prompt only ever appears after this click. Chrome and Edge sometimes show the request only as a bell icon in the address bar (crossed out in Chrome, at the right end in Edge); while the request is open, or after it closes unanswered, the page says where to click in the browser you are using.
-3. Choose **Send test notification**. It shows a real system notification, even while the page is open.
+3. A test notification is sent as soon as notifications are on (and again after **Reconnect**), so you see at once that they work. If it does not appear, *Didn't see it?* under the status lists what to check. **Send test notification** sends another one at any time.
 
-If the browser blocks notifications, the page says so and how to allow them with that browser's own address-bar controls; AgentRelay does not ask again. If the browser loses its permission or subscription, the footer shows *Reconnect notifications* and Settings offers **Reconnect**.
+If the browser blocks notifications, the page says so and how to allow them with that browser's own address-bar controls; AgentRelay does not ask again. After you allow them there, the page notices the change by itself (when the permission changes or the window regains focus) and offers **Turn on**; no reload is needed. If the browser loses its permission or subscription, the footer shows *Reconnect notifications* and Settings offers **Reconnect**.
 
 ## What you are notified about
 
@@ -61,9 +61,13 @@ The push carries only the connection id and its expiry. The service worker reads
 
 The push itself carries only an event id, a handoff id and a version (and, for a progress notice, whether it was claimed or completed). The browser's service worker then reads the title and project with your own signed-in session, so a signed-out or expired session shows only a generic reminder and the click goes to sign-in. Prompt text and images are never part of a push or of that request. If the handoff was picked up before the notification arrived, a quiet notice says it is no longer waiting.
 
-## Set up a Site
+## Push keys
 
-A Site sends notifications only when four runtime values are set. Generate them once:
+Nothing needs to be configured. Notifications are signed with a VAPID key pair, and a Site makes its own: the first time a browser opens the notification settings, the Worker generates a P-256 pair and stores it in the Site's database (`push_keys`, one row per workspace), with the Site's own address as the contact for the push services. From the first deployment every browser can turn notifications on at any time, and no second deployment is needed. Only the public key ever reaches a browser.
+
+The trade-off: the private key then sits in the same database as the browsers' subscriptions. Someone who can read that database (the Site owner's tooling, a backup or an export) could send pushes to the workspace's subscribed browsers. A push carries no handoff text and grants nothing, so the harm is unwanted notifications, but the private key is still a secret. Treat database exports accordingly.
+
+To keep the private key out of the database, set your own pair as runtime values instead. When all three keys are set they take precedence over the stored pair:
 
 ```bash
 node scripts/notifications/generate-vapid.mjs --subject https://<your-site>.chatgpt.site --out <a new file outside this repository>
@@ -73,14 +77,14 @@ node scripts/notifications/generate-vapid.mjs --subject https://<your-site>.chat
 
 | Runtime value | Meaning |
 | --- | --- |
-| `AGENTRELAY_WEB_PUSH_ENABLED` | `1` turns the feature on |
+| `AGENTRELAY_WEB_PUSH_ENABLED` | `0` switches notifications off for the whole Site; unset or anything else leaves them available |
 | `AGENTRELAY_VAPID_PUBLIC_KEY` | The public key, shared with browsers |
 | `AGENTRELAY_VAPID_PRIVATE_KEY` | **Secret.** Signs the pushes the Site sends |
 | `AGENTRELAY_VAPID_SUBJECT` | The contact address |
 
-Set them through the Sites runtime configuration, for example by asking the agent that deploys the Site to read the file and set the four values without printing them, then delete the file or keep it in a password manager. Sites applies new runtime values only on the next deployment. Keep the private key out of source, logs and screenshots.
+Set them through the Sites runtime configuration, for example by asking the agent that deploys the Site to read the file and set the values without printing them, then delete the file or keep it in a password manager. Sites applies new runtime values only on the next deployment. Keep the private key out of source, logs and screenshots. An incomplete set (any of the three keys missing) is ignored and the stored pair stays in use.
 
-Keep the same pair for the life of the Site. A new pair does not break anything permanently: each browser notices the change on its next visit and subscribes again by itself. Pushes sent in between are lost.
+Keep the same pair for the life of the Site where you can. Changing pairs (setting runtime values on a Site that used its stored pair, or removing them again) does not break anything permanently: each browser notices the change on its next visit and subscribes again by itself. Pushes sent in between are lost.
 
 ## How delivery works
 
@@ -97,9 +101,9 @@ Keep the same pair for the life of the Site. A new pair does not break anything 
 | The test works but handoffs do not notify | The browser is bound to another device, or the handoff was created before notifications were turned on |
 | Nothing at all on Windows | Do Not Disturb or Focus is on, or notifications for the browser are off in Windows settings |
 | No prompt after Turn on | The browser collapsed the request into a bell icon in the address bar: click it and choose Allow. To get prompts instead, change how sites ask in `chrome://settings/content/notifications` or turn off quiet notification requests in `edge://settings/content/notifications` |
-| The page says *Blocked* | Chrome: the site information icon at the left of the address bar, switch Notifications on. Edge: the lock icon, set Notifications to Allow. Then reload |
+| The page says *Blocked* | Chrome: the site information icon at the left of the address bar, switch Notifications on. Edge: the lock icon, set Notifications to Allow. The page picks up the change by itself |
 | *Needs reconnecting* | Choose Reconnect; permission or the subscription was lost |
-| *Not set up on this Site* | The four runtime values are missing or the Site has not been deployed since they were set |
+| *Switched off on this Site* | The Site has `AGENTRELAY_WEB_PUSH_ENABLED=0`; remove it and deploy again |
 | The browser was fully closed | Delivery needs the browser running; it is not required to have an AgentRelay tab open |
 
 The delivery details in Settings separate three facts: whether the push service accepted the message, the last error, and whether this browser's worker handled a push. None of them proves that the system displayed a notification.

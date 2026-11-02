@@ -1,18 +1,53 @@
 "use client";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Bell, Check } from "lucide-react";
 import { useLang } from "@/components/providers/LanguageProvider";
+import type { NotificationControl } from "@/features/handoffs";
 import type { SetupStep, SetupStepId } from "./setup-progress";
 
 export type SetupActions = {
   chooseDevice: () => void; connectAgent: () => void; copyLink: () => void; confirmOther: (() => void) | null; createHandoff: () => void;
 };
+/** This browser's notifications, offered as an optional step: `deviceId` is the device a click on Turn on binds them to. */
+export type SetupNotifications = { control: NotificationControl; deviceId: string; boundName: string; openSettings: () => void };
 type Props = {
   steps: readonly SetupStep[]; deviceName: string; otherName: string; siteUrl: string; actions: SetupActions;
-  onDismiss: () => void; onSample?: () => void;
+  notifications: SetupNotifications | null; onDismiss: () => void; onSample?: () => void;
 };
 
+/**
+ * The optional step after the numbered ones. It is not counted in the progress and never becomes the current step; it is
+ * shown only where notifications can work, and the browser's permission prompt still follows only the click on its button.
+ */
+function NotifyStep({ control, deviceId, deviceName, boundName, openSettings }: SetupNotifications & { deviceName: string }) {
+  const { t, errorText } = useLang(), s = t.setup.notify;
+  const { state } = control, on = state === "on";
+  if (state !== "off" && !on && state !== "blocked" && state !== "reconnect") return null;
+  // While the browser's request is open or went unanswered, the same browser-specific steps as in Settings say where to look.
+  const guide = state === "off" && control.prompt && control.browser ? t.notifications.guide[control.browser][control.prompt] : null;
+  return <div className="setup-optional" data-state={on ? "done" : "todo"}>
+    <span className="setup-mark" aria-hidden="true">{on ? <Check size={13} strokeWidth={2.5} /> : <Bell size={12} />}</span>
+    <div className="setup-body">
+      <strong>{s.title}<small className="setup-tag">{s.optional}</small></strong>
+      {on ? <>
+        <p className="muted">{s.done(boundName)}{control.lastTest?.trigger === "enabled" && ` ${s.tested}`}</p>
+        {control.lastTest && <div className="setup-actions"><button type="button" className="link" onClick={openSettings}>{s.missing}</button></div>}
+      </> : state === "off" ? <>
+        <p>{guide ?? s.body(deviceName)}</p>
+        <div className="setup-actions">
+          <button type="button" className="btn small" disabled={control.busy} onClick={() => void control.enable(deviceId)}>{s.action}</button>
+          <button type="button" className="link" onClick={openSettings}>{s.settings}</button>
+        </div>
+      </> : <>
+        <p>{s.attention}</p>
+        <div className="setup-actions"><button type="button" className="link" onClick={openSettings}>{s.settings}</button></div>
+      </>}
+      {!!control.error && <p role="alert" className="muted">{errorText(control.error)}</p>}
+    </div>
+  </div>;
+}
+
 /** The steps in order. Done steps say what is true, the first open one says what to do, later ones only name themselves. */
-export function SetupSteps({ steps, deviceName, otherName, siteUrl, actions }: Omit<Props, "onDismiss" | "onSample">) {
+export function SetupSteps({ steps, deviceName, otherName, siteUrl, actions, notifications }: Omit<Props, "onDismiss" | "onSample">) {
   const { t } = useLang(), s = t.setup;
   const next = steps.findIndex(step => !step.done);
   const titles: Record<SetupStepId, string> = { device: s.device.title, agent: s.agent.title, nextDevice: s.nextDevice.title, handoff: s.handoff.title };
@@ -37,7 +72,7 @@ export function SetupSteps({ steps, deviceName, otherName, siteUrl, actions }: O
         <div className="setup-actions"><button type="button" className="link" onClick={actions.createHandoff}>{s.handoff.action}</button></div></>;
     }
   }
-  return <ol className="setup-list">
+  return <><ol className="setup-list">
     {steps.map((step, i) => <li key={step.id} data-state={step.done ? "done" : i === next ? "current" : "todo"} aria-current={i === next ? "step" : undefined}>
       <span className="setup-mark" aria-hidden="true">{step.done ? <Check size={13} strokeWidth={2.5} /> : i + 1}</span>
       <div className="setup-body">
@@ -46,7 +81,8 @@ export function SetupSteps({ steps, deviceName, otherName, siteUrl, actions }: O
           : i === next ? open(step.id) : null}
       </div>
     </li>)}
-  </ol>;
+  </ol>
+  {notifications && <NotifyStep {...notifications} deviceName={deviceName} />}</>;
 }
 
 /** The checklist in place of an empty inbox. */

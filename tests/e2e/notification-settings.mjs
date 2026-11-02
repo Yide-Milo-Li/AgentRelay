@@ -101,10 +101,17 @@ try {
   await openInbox(); await fakeBrowser("default"); await lookAgain();
   await wait(`${FOOTER} !== null`);
   await check("a browser that never had notifications gets an icon in the footer, without words", `${FOOTER}.textContent.trim() === '' && ${FOOTER}.getAttribute('aria-label') === 'Notifications off'`);
+  await check("the optional notification step waits until this browser has chosen its device", "document.querySelector('.setup') !== null && document.querySelector('.setup-optional') === null");
+  // Choose Laptop as the device picker does, then tell the page the way another tab would.
+  await evaluate("localStorage.setItem('agentrelay.device.v2', 'laptop'); localStorage.setItem('agentrelay.device.chosen.v1', '1'); window.dispatchEvent(new StorageEvent('storage', { key: 'agentrelay.device.v2' })); true");
+  await wait("document.querySelector('.setup-optional') !== null");
+  await capture("checklist-off");
+  await check("the setup checklist offers notifications as an optional, uncounted step", `${hasText(".setup-optional", "Turn on notifications")} && ${hasText(".setup-optional", "Optional")} && document.querySelector('.setup').querySelectorAll('.setup-list > li').length === 4`);
   await click(".foot-status .notification-indicator");
   await wait(`${STATE} === 'off'`);
   await check("the reminder opens Settings › Notifications, where Turn on is offered and the options wait", "document.querySelector('[data-settings-section=notifications]').getAttribute('aria-pressed') === 'true' && [...document.querySelectorAll('.settings .btn')].some(b => b.textContent === 'Turn on' && !b.disabled) && document.querySelector('.setting-checks input').disabled && document.querySelector('#notification-details').disabled");
   await check("the device to notify defaults to the device used in the top bar", "document.querySelector('#notification-device').selectedOptions[0].textContent === 'Laptop' && !document.querySelector('#notification-device').disabled");
+  await check("the note names the device that would be notified", hasText(".notification-note", "arrives for Laptop"));
   await capture("off");
   await openInbox();
   await check("having looked at the settings retires the reminder", `${FOOTER} === null`);
@@ -141,6 +148,10 @@ try {
   await check("Edge is told to use the lock icon instead", `${hasText(".setting-group .setting-text", "Edge blocked notifications for this site")}`);
   await capture("blocked-edge");
   await evaluate("Object.defineProperty(navigator, 'userAgentData', { configurable: true, get: window.__brand }); true");
+  // Unblocking in the browser's site settings is noticed when the page regains focus, without a reload or another tab's message.
+  await evaluate("window.__perm = 'default'; window.dispatchEvent(new Event('focus')); true");
+  await wait(`${STATE} === 'off'`);
+  await check("an unblocked permission is picked up on focus and Turn on is offered", "[...document.querySelectorAll('.settings .btn')].some(b => b.textContent === 'Turn on' && !b.disabled)");
 
   // 4. The Site has a subscription but the browser lost its permission: only a click can fix that.
   await api("/api/notifications", "PUT", { browserId: await browserId(), deviceId: "laptop", locale: "en", subscription: subscription("fake-browser"), label: "Chrome on Windows" });
@@ -158,6 +169,10 @@ try {
   assert.equal(afterReconnect[0], "permission"); assert.ok(afterReconnect.includes("subscribe"));
   checks.push("reconnecting asks for permission before anything else, then subscribes"); console.log("PASS reconnecting asks for permission before anything else, then subscribes");
   await check("the status is On for the bound device", `${hasText(".setting-group .setting-text", "On · for Laptop")}`);
+  await wait(hasText(".notification-note", "test notification is on its way"));
+  assert.ok((await calls()).includes("test")); checks.push("turning on sends a test notification by itself"); console.log("PASS turning on sends a test notification by itself");
+  await check("the welcome note offers checks for a missing notification", `${hasText(".notification-missing summary", "Didn't see it?")} && ${hasText(".notification-missing", "Do Not Disturb")}`);
+  await capture("welcome");
   await openInbox();
   await check("no reminder is shown while notifications are on", `${FOOTER} === null`);
   await openNotifications();
@@ -217,6 +232,20 @@ try {
   await evaluate("(() => { [...document.querySelectorAll('.settings .btn')].find(b => b.textContent === 'Turn on').click(); return true; })()");
   await wait(`${STATE} === 'on'`);
   assert.ok((await serverRow()).deviceId); checks.push("turning on again registers a new subscription"); console.log("PASS turning on again registers a new subscription");
+
+  // 9b. The setup checklist's optional step turns notifications on from the inbox, with the same test and its confirmation.
+  await evaluate("(() => { [...document.querySelectorAll('.settings .btn')].find(b => b.textContent === 'Turn off').click(); return true; })()");
+  await wait(`${STATE} === 'off'`);
+  await openInbox();
+  await evaluate("window.__calls = []; [...document.querySelectorAll('.setup-optional .btn')].find(b => b.offsetParent !== null).click(); true");
+  await wait(hasText(".setup-optional[data-state=done]", "A test notification is on its way"));
+  const fromChecklist = await calls();
+  assert.equal(fromChecklist[0], "permission"); assert.ok(fromChecklist.includes("subscribe") && fromChecklist.includes("test"));
+  checks.push("the checklist step asks for permission from its click, subscribes and sends a test"); console.log("PASS the checklist step asks for permission from its click, subscribes and sends a test");
+  await check("the done step names the bound device", hasText(".setup-optional", "Notifications are on for Laptop"));
+  await capture("checklist-on");
+  await openNotifications();
+  await wait(`${STATE} === 'on'`);
 
   // 10. Phone width and dark scheme.
   await browser("set", "viewport", "390", "800");
