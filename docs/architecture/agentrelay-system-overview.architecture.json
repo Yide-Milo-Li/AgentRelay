@@ -7,10 +7,10 @@
     "output": "docs/architecture/agentrelay-system-overview.html",
     "quality_profile": "showcase",
     "repository": {
-      "url": "https://github.com/OWNER/REPOSITORY.git",
+      "url": "https://github.com/Yide-Milo-Li/AgentRelay.git",
       "provider": "github",
-      "link_mode": "local-only",
-      "revision": "dbde885f070eeedbc6d7354a3b711d951ed771e8"
+      "link_mode": "web",
+      "revision": "c234a3b248c60b36e8417a919b2984a6d8bbe208"
     }
   },
   "components": [

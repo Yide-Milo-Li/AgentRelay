@@ -1,6 +1,6 @@
 {
   "version": "0.8.1",
-  "contentSha256": "b57478b5e368c6b19d74dea7c38d6df18785a1965cc8e51965f528cc15e1e96b",
+  "contentSha256": "ac6e60ecf469679a09020caa2c449e84472aafea512b9d49fa80b07f7b20965b",
   "files": [
     {
       "file": ".gitattributes",
@@ -60,11 +60,11 @@
     },
     {
       "file": "docs/architecture/agentrelay-system-overview.architecture.json",
-      "sha256": "64a2c098867af95baec6b1badc1c423c1a462343f0d1a0ae53ddd4fe38963089"
+      "sha256": "5e80f81a34eb7c23a88a20917ccfce2eb4351ea30a168a74623ee3e2f9c9715f"
     },
     {
       "file": "docs/architecture/agentrelay-system-overview.html",
-      "sha256": "97341b3d9606ae5430012cad491f18f24440903d4d0aab273576f757effe4082"
+      "sha256": "2276c4bf93cf171395a26b94c7f8031d9328a153ca604657d08b3585d3a3f4da"
     },
     {
       "file": "docs/architecture/archify-notices/assets/JetBrainsMono-OFL.txt",
