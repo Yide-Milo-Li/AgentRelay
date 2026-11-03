@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { identityHeaders } from "../support/test-identity.mjs";
 
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5188";
 if (!/^(127\.0\.0\.1|localhost)$/.test(new URL(base).hostname)) throw new Error("Keyboard checks only run against a local Worker.");
 const run = crypto.randomUUID();
 const session = `agentrelay-keys-${run.slice(0, 8)}`;
-const headers = { "oai-authenticated-user-id": `keyboard-qa-${run}`, "oai-authenticated-user-email": "keyboard@sites.test" };
+const headers = identityHeaders(`keyboard-qa-${run}`, "keyboard@sites.test");
 const binary = process.env.AGENT_BROWSER_BIN ?? (process.platform === "win32"
   ? path.join(process.env.APPDATA, "npm/node_modules/agent-browser/bin/agent-browser-win32-x64.exe") : "agent-browser");
 const output = path.resolve(process.env.AGENTRELAY_QA_OUTPUT ?? `outputs/keyboard-shortcuts/${run}`);
@@ -38,6 +39,9 @@ const press = key => browser("press", key);
 const click = selector => browser("click", selector);
 const fill = (selector, value) => browser("fill", selector, value);
 const wait = expression => browser("wait", "--fn", expression);
+// The server answers a search after a short pause: wait until every listed row's title matches it and the detail has its record.
+const searched = text => wait(`(() => { const titles = [...document.querySelectorAll('.list .row .row-head strong')].map(title => title.textContent.toLowerCase());
+  return titles.length > 0 && titles.every(title => title.includes(${JSON.stringify(text.toLowerCase())})) && !document.querySelector('.detail[aria-busy]'); })()`);
 const capture = async name => {
   // Capture settled dialogs rather than their translucent opening-transition frames.
   await wait("[...document.querySelectorAll('dialog[open]')].every(dialog => Number(getComputedStyle(dialog).opacity) >= 0.999 && dialog.getAnimations().every(animation => animation.playState !== 'running' && !animation.pending))");
@@ -97,7 +101,7 @@ async function verifyLifecycleShortcuts() {
       return window.__lifecycleFetch(url, options);
     }`);
   async function enter(title) {
-    await press("/"); await fill(".search input", title); await evaluate("document.activeElement.blur()"); await press("j"); await press("Enter");
+    await press("/"); await fill(".search input", title); await evaluate("document.activeElement.blur()"); await searched(title); await press("j"); await press("Enter");
     await wait(`document.activeElement.matches('.prompt') && document.querySelector('.detail h1')?.textContent === ${JSON.stringify(title)}`);
   }
   try {
@@ -105,6 +109,8 @@ async function verifyLifecycleShortcuts() {
     await press("Shift+c"); await press("Shift+d");
     await check("status shortcuts leave search input untouched by mutations", "window.__lifecycleCalls.length === 0 && document.activeElement.matches('.search input')");
     await fill(".search input", "Lifecycle A"); await evaluate("document.activeElement.blur()");
+    // The server answers the search; the shortcuts are tried on the preview it leaves, once its record has arrived.
+    await wait("document.querySelector('.detail:not([aria-busy]) h1')?.textContent === 'Lifecycle A'");
     await press("Shift+c"); await press("Shift+d");
     await check("a fallback preview nobody selected cannot be claimed or completed", "window.__lifecycleCalls.length === 0 && document.querySelector('.detail h1')?.textContent === 'Lifecycle A'");
     await press("j"); await press("Enter"); await press("c"); await press("d"); await press("Shift+d");
@@ -137,7 +143,7 @@ async function verifyLifecycleShortcuts() {
     await check("claim never advances an already claimed handoff to Done", "window.__lifecycleCalls.length === 1");
     await capture("desktop-lifecycle-claimed");
 
-    await press("/"); await fill(".search input", "Lifecycle"); await browser("focus", ".prompt"); await press("Shift+d");
+    await press("/"); await fill(".search input", "Lifecycle"); await searched("Lifecycle"); await browser("focus", ".prompt"); await press("Shift+d");
     await wait("document.activeElement.matches('.row') && document.querySelector('.detail h1')?.textContent !== 'Lifecycle A'");
     await press("Shift+d"); await press("Shift+d");
     await check("complete returns focus to list and cannot complete its replacement preview", "window.__lifecycleCalls.length === 2 && document.activeElement.matches('.row')");
@@ -170,7 +176,7 @@ async function verifyLifecycleShortcuts() {
     assert.equal(conflictRow.status, "claimed"); assert.equal(conflictRow.claimedByDeviceId, "desktop"); assert.equal(conflictRow.version, conflict.version + 1);
     checks.push("CAS conflict preserves the other device's claim");
 
-    await click(".segmented button:first-child"); await fill(".search input", "Lifecycle D"); await evaluate("document.activeElement.blur()"); await press("j");
+    await click(".segmented button:first-child"); await fill(".search input", "Lifecycle D"); await evaluate("document.activeElement.blur()"); await searched("Lifecycle D"); await press("j");
     await press("Shift+c");
     await wait("window.__lifecycleCalls.at(-1)?.response === 200");
     await check("a row picked with J claims while focus stays in the list", "window.__lifecycleCalls.length === 6 && document.activeElement.matches('.row') && document.querySelector('.detail .actions [aria-keyshortcuts=\"Shift+d\"]') !== null");
@@ -249,9 +255,12 @@ try {
   await check("clipboard fallback preserves exact text and keyboard focus", `window.__copied === ${JSON.stringify(prompt)} && document.activeElement.matches('.prompt')`);
   await evaluate("document.execCommand = window.__execCommand; delete navigator.clipboard;");
   await click(".segmented button:nth-child(2)");
+  // The server filters and searches now, so each step waits for the list it answers with.
+  await wait("document.querySelectorAll('.row').length === 2");
   await press("j");
   await check("navigation uses filtered rows", "document.querySelectorAll('.row').length === 2 && document.activeElement === [...document.querySelectorAll('.row')].at(-1)");
-  await press("/"); await fill(".search input", "missing-keyboard-record"); await evaluate("document.activeElement.blur()"); await press("j");
+  await press("/"); await fill(".search input", "missing-keyboard-record"); await evaluate("document.activeElement.blur()");
+  await wait("document.querySelectorAll('.row').length === 0"); await press("j");
   await check("navigation on an empty filter is harmless", "document.querySelectorAll('.row').length === 0 && !document.querySelector('dialog[open]')");
   await press("/"); await press("Escape"); await press("Escape");
 

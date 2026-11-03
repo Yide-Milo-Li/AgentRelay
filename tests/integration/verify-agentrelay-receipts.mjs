@@ -1,6 +1,7 @@
 // Completion receipts and reply threads over the built Worker: both MCP endpoints, the browser routes and storage accounting.
 import assert from "node:assert/strict";
 import { testRequest } from "../support/integration-http.mjs";
+import { identityHeaders } from "../support/test-identity.mjs";
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5178";
 if (!["127.0.0.1", "localhost"].includes(new URL(base).hostname)) throw new Error("Receipt checks only run against a local database.");
 const run = crypto.randomUUID(), owner = `receipts-qa-${run}`, stranger = `receipts-other-${run}`;
@@ -9,7 +10,7 @@ const check = (name, condition) => { assert.ok(condition, name); passed.push(nam
 async function request(path, method = "GET", data, headers = {}) {
   return testRequest(base + path, { method, headers: { "Content-Type": "application/json", Connection: "close", ...headers }, body: data === undefined ? undefined : JSON.stringify(data) });
 }
-const identity = user => ({ "oai-authenticated-user-id": user });
+const identity = user => ({ ...identityHeaders(user) });
 const bearer = token => ({ Authorization: `Bearer ${token}` });
 const web = (path, method, data, user = owner) => request(path, method, data, identity(user));
 const call = (endpoint, headers) => (name, args) => request(endpoint, "POST", { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }, headers);

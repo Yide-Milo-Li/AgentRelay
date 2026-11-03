@@ -11,14 +11,19 @@ const UPLOAD_TIMEOUT_MS = 60_000;
 
 export class UploadError extends Error {}
 
-/** The Authorization value for the Sites gateway: Codex stores the whole header value, other agents only the token. */
+/**
+ * The Authorization value for the Sites gateway: Codex stores the whole header value, other agents only the token.
+ * Null when neither is set, as on a deployment without the Sites gate; a Site that needs one then refuses the request.
+ */
 export function gatewayAuthorization(env = process.env) {
   const header = env.AGENTRELAY_SITES_GATEWAY_HEADER?.trim();
   if (header) return header;
   const token = env.AGENTRELAY_SITES_GATEWAY_TOKEN?.trim();
-  if (token) return `Bearer ${token}`;
-  throw new UploadError("Set AGENTRELAY_SITES_GATEWAY_TOKEN (or, for Codex, AGENTRELAY_SITES_GATEWAY_HEADER) in this terminal. It is read from the environment and never written to a file.");
+  return token ? `Bearer ${token}` : null;
 }
+
+/** The credential headers of an agent request; the gateway header only when there is one. */
+export const agentHeaders = (agentToken, authorization) => ({ Authorization: `Bearer ${agentToken}`, ...(authorization ? { "OAI-Sites-Authorization": authorization } : {}) });
 
 export function agentTokenFrom(env = process.env) {
   const token = env.AGENTRELAY_AGENT_TOKEN?.trim() ?? "";
@@ -55,7 +60,7 @@ export async function uploadImages({ files, siteUrl, agentToken, authorization, 
       response = await fetchImpl(`${siteUrl}${UPLOAD_SUFFIX}`, {
         method: "POST",
         headers: { "Content-Type": item.mimeType, "X-Filename": encodeURIComponent(item.name), "X-Upload-Key": `${retryKey}-${index}`,
-          Authorization: `Bearer ${agentToken}`, "OAI-Sites-Authorization": authorization },
+          ...agentHeaders(agentToken, authorization) },
         body: item.bytes, signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS), redirect: "error",
       });
     } catch (error) {
@@ -65,9 +70,9 @@ export async function uploadImages({ files, siteUrl, agentToken, authorization, 
     let body = null;
     try { body = JSON.parse(text); } catch { /* A restricted site answers a wrong gateway token with an HTML page. */ }
     if (response.status === 401 || response.status === 403)
-      throw new UploadError(`${item.name}: AgentRelay refused the credentials (${response.status}). Check AGENTRELAY_AGENT_TOKEN and the Sites gateway token for this Site.`);
+      throw new UploadError(`${item.name}: AgentRelay refused the credentials (${response.status}). Check AGENTRELAY_AGENT_TOKEN and, on ChatGPT Sites, the gateway token for this Site.`);
     if (!response.ok || !body?.id) {
-      const reason = typeof body?.error === "string" ? body.error : `answered ${response.status} without upload data; check the endpoint URL and the Sites gateway token`;
+      const reason = typeof body?.error === "string" ? body.error : `answered ${response.status} without upload data; check the endpoint URL and, on ChatGPT Sites, the gateway token`;
       throw new UploadError(`${item.name}: ${reason}`);
     }
     results.push(body);

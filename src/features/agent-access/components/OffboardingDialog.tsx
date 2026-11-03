@@ -6,6 +6,10 @@ import { AgentRelayClientError } from "@/shared/errors/agent-relay-client-error"
 import { formatRelative } from "@/shared/formatting/relative-time";
 import type { Device } from "@/shared/contracts/devices";
 import type { TokenInfo } from "@/shared/contracts/agent-tokens";
+import { DEPLOYMENT_TARGET } from "@/shared/contracts/deployment-target";
+
+// On a standalone Cloudflare deployment the Access policy decides who signs in, and there is no gateway token to rotate.
+const ACCESS = DEPLOYMENT_TARGET === "cloudflare";
 
 type Props = {
   /** The member's display name, or null for connections issued before attribution existed. */
@@ -37,10 +41,10 @@ export default function OffboardingDialog({ name, tokens, devices, now, trigger,
   return <dialog ref={dialog} className="identity-dialog offboarding-dialog" data-shortcut-layer aria-labelledby="off-title"
     onCancel={event => { event.preventDefault(); if (!busy) close(); }}>
     <h2 id="off-title">{t.offTitle(display)}</h2>
-    <p>{t.offIntro}</p>
+    <p>{ACCESS ? t.offIntroAccess : t.offIntro}</p>
     <ol className="off-steps">
-      <li><h3>{t.offStep1}</h3><p>{t.offStep1Body}</p>
-        <label className="check"><input type="checkbox" checked={sharingDone} onChange={event => setSharingDone(event.target.checked)} />{t.offStep1Check}</label></li>
+      <li><h3>{ACCESS ? t.offStep1Access : t.offStep1}</h3><p>{ACCESS ? t.offStep1AccessBody : t.offStep1Body}</p>
+        <label className="check"><input type="checkbox" checked={sharingDone} onChange={event => setSharingDone(event.target.checked)} />{ACCESS ? t.offStep1AccessCheck : t.offStep1Check}</label></li>
       <li><h3>{done ? t.offStep2Done : t.offStep2(tokens.length)}</h3>
         {done ? <p role="status">{t.offDone}</p> : tokens.length === 0 ? <p>{t.offNone}</p> : <>
           <p>{t.offStep2Body}</p>
@@ -48,7 +52,7 @@ export default function OffboardingDialog({ name, tokens, devices, now, trigger,
             {" · "}{token.lastAuthenticatedAt ? t.connLastUsed(formatRelative(token.lastAuthenticatedAt, now, locale)) : t.connNeverUsed}{token.neverExpires ? ` · ${t.permanentOption}` : ""}</li>)}</ul>
           {!!error && <p role="alert" className="form-error">{errorText(error)}</p>}
           <button type="button" className="btn danger" disabled={busy} onClick={() => void revoke()}>{t.offConfirm(tokens.length)}</button></>}</li>
-      <li><h3>{t.offStep3}</h3><p>{t.offStep3Body}</p></li>
+      {!ACCESS && <li><h3>{t.offStep3}</h3><p>{t.offStep3Body}</p></li>}
     </ol>
     <div className="wizard-actions"><button ref={closeButton} type="button" className="btn" onClick={close}>{t.offClose}</button></div>
   </dialog>;

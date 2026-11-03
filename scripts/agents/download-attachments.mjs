@@ -1,7 +1,7 @@
 // Download a handoff's images to local files and print their paths. Use it when an MCP image block does not arrive,
 // or when the client saved it to a file the agent cannot open.
 // Usage: node scripts/agents/download-attachments.mjs [--url <https://site/api/agent/mcp>] [--out <folder>] <handoffId>
-// Environment: AGENTRELAY_MCP_URL (or --url), AGENTRELAY_AGENT_TOKEN, and AGENTRELAY_SITES_GATEWAY_TOKEN
+// Environment: AGENTRELAY_MCP_URL (or --url), AGENTRELAY_AGENT_TOKEN, and on ChatGPT Sites AGENTRELAY_SITES_GATEWAY_TOKEN
 // (Codex: AGENTRELAY_SITES_GATEWAY_HEADER). Stdout is one JSON object; diagnostics go to stderr and never contain a credential.
 import { resolveSite } from "../../tooling/agents/device-setup.mjs";
 import { agentTokenFrom, gatewayAuthorization } from "../../tooling/agents/upload-attachments.mjs";

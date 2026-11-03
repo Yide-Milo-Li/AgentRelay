@@ -4,11 +4,12 @@ import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { flat, fromPixels, padTo } from "../support/image-fixtures.mjs";
+import { identityHeaders } from "../support/test-identity.mjs";
 
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5178";
 if (!/^(127\.0\.0\.1|localhost)$/.test(new URL(base).hostname)) throw new Error("Image browser checks only run against a local Worker.");
 const run = crypto.randomUUID(), session = `agentrelay-images-${run.slice(0, 8)}`;
-const headers = { "oai-authenticated-user-id": `images-qa-${run}`, "oai-authenticated-user-email": "images@sites.test" };
+const headers = identityHeaders(`images-qa-${run}`, "images@sites.test");
 const binary = process.env.AGENT_BROWSER_BIN ?? (process.platform === "win32"
   ? path.join(process.env.APPDATA, "npm/node_modules/agent-browser/bin/agent-browser-win32-x64.exe") : "agent-browser");
 const output = path.resolve(process.env.AGENTRELAY_QA_OUTPUT ?? `outputs/image-handoffs/${run}`), files = path.join(output, "files");
@@ -202,7 +203,9 @@ try {
   // ---- Storage -------------------------------------------------------------------------------------------------------------
   await openStorage();
   await wait("document.querySelector('.storage-table-wrap')?.getAttribute('aria-busy') === 'false'");
-  await check("Storage draws images on the composition bar and reports R2 apart from the database quota", "document.querySelector('.storage-segment[data-kind=\"images\"]') !== null && [...document.querySelectorAll('.storage-quota')].some(row => row.textContent.includes('Image storage (R2)') && row.textContent.includes('No fixed limit')) && document.querySelector('.storage-images').textContent.includes('3 images attached')");
+  // R2 has no fixed limit on Sites; a standalone Cloudflare deployment shows its free allowance instead.
+  const r2Label = process.env.AGENTRELAY_TEST_TARGET === "cloudflare" ? "10 GB-month free, billed above" : "No fixed limit";
+  await check("Storage draws images on the composition bar and reports R2 apart from the database quota", `document.querySelector('.storage-segment[data-kind=\"images\"]') !== null && [...document.querySelectorAll('.storage-quota')].some(row => row.textContent.includes('Image storage (R2)') && row.textContent.includes(${JSON.stringify(r2Label)})) && document.querySelector('.storage-images').textContent.includes('3 images attached')`);
   await check("rows with images break the size down into text and images", "[...document.querySelectorAll('.storage-table tbody tr')].some(row => row.textContent.includes('2 images'))");
   await click(".storage-images .btn");
   await wait("document.querySelector('.storage-notice') !== null");

@@ -8,6 +8,10 @@ import type { IssuedAgentToken, TokenInfo } from "@/shared/contracts/agent-token
 import { api } from "@/shared/http/client";
 import CopyPanel from "@/features/agent-access/components/CopyPanel";
 import { connectCommand, gatewayCopyCommand } from "@/features/agent-access/connect-command";
+import { DEPLOYMENT_TARGET } from "@/shared/contracts/deployment-target";
+
+// A standalone Cloudflare deployment lets AgentRelay's agent path bypass Access: agents need no gateway token there.
+const GATEWAY = DEPLOYMENT_TARGET === "sites";
 
 type Props = {
   issued: IssuedAgentToken; profile: AgentProfile; siteUrl: string; notify: (message: string) => void; onDone: () => void;
@@ -22,7 +26,8 @@ type Props = {
 
 /**
  * Set up, in the order the person acts: run the command on the device, paste the token it asks for (and, the first
- * time on a device, the Site's gateway token), then watch the credential come in. Everything else is folded away.
+ * time on a device of a ChatGPT Site, the Site's gateway token), then watch the credential come in. Everything else
+ * is folded away.
  */
 export default function ConnectionSecret({ issued, profile, siteUrl, device, firstOnDevice, notify, onDone }: Props) {
   const { t, lang, errorText } = useLang();
@@ -53,7 +58,7 @@ export default function ConnectionSecret({ issued, profile, siteUrl, device, fir
   </>;
   return <div className="connection-secret">
     <ol className="setup-steps">
-      {firstOnDevice && <li className="setup-gateway-first"><h4>{t.setupGatewayFirst(device?.name ?? null)}</h4>{gateway}</li>}
+      {GATEWAY && firstOnDevice && <li className="setup-gateway-first"><h4>{t.setupGatewayFirst(device?.name ?? null)}</h4>{gateway}</li>}
       <li><h4>{t.setupRun(device?.name ?? null)}</h4><p className="muted">{t.setupRunHint}</p>
         <CopyPanel title={t.connectTitle(device?.name ?? profile.label)} text={command} copyLabel={t.copyCommand} copiedMessage={t.toastCommandCopied} notify={notify} /></li>
       <li><h4>{t.setupPaste}</h4>
@@ -65,7 +70,7 @@ export default function ConnectionSecret({ issued, profile, siteUrl, device, fir
             <button type="button" className="link" onClick={() => setShown(false)}>{t.hideToken}</button>
           </div>
         </div> : null}
-        {!firstOnDevice && <details className="setup-gateway"><summary>{t.setupGateway}</summary>{gateway}</details>}</li>
+        {GATEWAY && !firstOnDevice && <details className="setup-gateway"><summary>{t.setupGateway}</summary>{gateway}</details>}</li>
     </ol>
     <div className="connection-verification" role="status" data-state={connected ? "connected" : "waiting"}>
       <strong>{connected ? <><Check size={15} aria-hidden="true" />{t.connectionAuthenticated(profile.label)}</> : t.connectionWaiting}</strong>

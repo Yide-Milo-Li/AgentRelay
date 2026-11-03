@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   try {
     sameOrigin(request);
-    const actor = actorFrom(request);
+    const actor = await actorFrom(request);
     return json(await revokeTokenSet(actor.owner, await body(request), actor));
   } catch (e) { return failure(e); }
 }

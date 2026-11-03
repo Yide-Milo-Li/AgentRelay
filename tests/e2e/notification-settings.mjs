@@ -6,11 +6,12 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { identityHeaders } from "../support/test-identity.mjs";
 
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5178";
 if (!["127.0.0.1", "localhost"].includes(new URL(base).hostname)) throw new Error("Notification browser checks require a local Worker.");
 const run = crypto.randomUUID(), owner = `notify-settings-${run}`, session = `notify-s-${run.slice(0, 8)}`;
-const output = path.resolve(`outputs/notification-settings-e2e/${run}`), headers = { "oai-authenticated-user-id": owner, "oai-authenticated-user-email": "notify@sites.test" };
+const output = path.resolve(`outputs/notification-settings-e2e/${run}`), headers = identityHeaders(owner, "notify@sites.test");
 const binary = process.env.AGENT_BROWSER_BIN ?? (process.platform === "win32" ? path.join(process.env.APPDATA, "npm/node_modules/agent-browser/bin/agent-browser-win32-x64.exe") : "agent-browser");
 await mkdir(output, { recursive: true });
 

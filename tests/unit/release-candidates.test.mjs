@@ -19,6 +19,14 @@ function audit(files, options) {
   } finally { rmSync(root, { recursive: true, force: true }); }
 }
 
+test("synthetic and placeholder Cloudflare hosts pass the audit; a real Worker host or Access team does not", () => {
+  const inventory = audit({ "guide.md": "Open https://agentrelay.<subdomain>.workers.dev, https://agentrelay.example.workers.dev or https://<team>.cloudflareaccess.com;"
+    + " tests use https://example-team.cloudflareaccess.com and https://agentrelay-test.cloudflareaccess.com." });
+  assert.deepEqual(inventory.map(entry => entry.file), ["guide.md"]);
+  assert.throws(() => audit({ "worker.md": `https://agentrelay.someone${".workers.dev"}` }), /worker.md: private Cloudflare identity/);
+  assert.throws(() => audit({ "access.json": `{"iss":"https://real-team${".cloudflareaccess.com"}"}` }), /access.json: private Cloudflare identity/);
+});
+
 test("documentation placeholders for a Site address pass the candidate audit", () => {
   const inventory = audit({ "guide.md": "Use https://<your-site>.chatgpt.site or https://my-site.example.chatgpt.site/ here." });
   assert.deepEqual(inventory.map(entry => entry.file), ["guide.md"]);
@@ -70,6 +78,7 @@ test("source candidates retain community files and CI without private plans or d
       ".github/ISSUE_TEMPLATE/bug_report.md": "# Bug fixture\n",
       ".github/ISSUE_TEMPLATE/feature_request.md": "# Feature fixture\n",
       "design/DESIGN.md": "# Design fixture\n",
+      "docs/guides/development.md": "# Development fixture\n\n> Note: `AGENTS.md` is a local workspace instruction file ignored by git.\n\n- **Sites Project ID**: Fixture Maintainer private Site.\n- **Future Open-Source Release**: Fixture Maintainer private procedure.\n",
       "docs/architecture/agentrelay-system-overview.architecture.json": JSON.stringify({ meta: { repository: { url: "https://github.com/example/private-source.git" } } }),
       "docs/architecture/agentrelay-system-overview.html": "<p>example/private-source</p>",
       "docs/operations/open-source-release.md": "Fixture Maintainer private release procedure\n",
@@ -93,6 +102,11 @@ test("source candidates retain community files and CI without private plans or d
     assert.equal(existsSync(path.join(output, ".local")), false);
     assert.equal(existsSync(path.join(output, ".git")), false);
     assert.match(readFileSync(path.join(output, "README.md"), "utf8"), /`AGENTS\.md` is tracked contributor guidance/);
+    // The repository notes moved from the README to the development guide; both are rewritten for the template.
+    const guide = readFileSync(path.join(output, "docs/guides/development.md"), "utf8");
+    assert.match(guide, /`AGENTS\.md` is tracked contributor guidance/);
+    assert.match(guide, /^- \*\*Sites Project ID\*\*: This template has no Site identity\./m);
+    assert.match(guide, /^- \*\*Template source\*\*:/m);
     assert.doesNotMatch(readFileSync(path.join(output, ".gitignore"), "utf8"), /^\/?AGENTS\.md$/m);
     const diagram = JSON.parse(readFileSync(path.join(output, "docs/architecture/agentrelay-system-overview.architecture.json"), "utf8"));
     assert.match(diagram.meta.repository.url, /OWNER\/REPOSITORY/, "diagram provenance stays anonymous after a private remote rename");

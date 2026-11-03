@@ -8,7 +8,9 @@ import type { IssuedAgentToken, TokenInfo } from "@/shared/contracts/agent-token
 import { AGENT_PROFILES, DEFAULT_AGENT_PROFILE, findAgentProfile } from "@/shared/agent-profiles";
 import ConnectionSecret from "@/features/agent-access/components/ConnectionSecret";
 import PluginSetup from "@/features/agent-access/components/PluginSetup";
+import NativeMcpSetup from "@/features/agent-access/components/NativeMcpSetup";
 import PermanentConnectionDialog from "./PermanentConnectionDialog";
+import { DEPLOYMENT_TARGET } from "@/shared/contracts/deployment-target";
 
 type Props = {
   devices: readonly Device[]; defaultDeviceId: string | null; siteUrl: string;
@@ -18,8 +20,13 @@ type Props = {
   connectedDevices: ReadonlySet<string>;
 };
 const NO_DEVICE = "";
-/** The Site's own plugin: chosen like an agent, but it issues no token and ends in its own instructions. */
+/**
+ * The token-free option: chosen like an agent, but it issues no token and ends in its own instructions. On ChatGPT Sites
+ * it is the Site's own plugin; a standalone Cloudflare deployment has none, so it is a native MCP client signing in
+ * through Cloudflare Access instead.
+ */
 const PLUGIN = "plugin";
+const NATIVE = DEPLOYMENT_TARGET === "cloudflare";
 type Step = "device" | "agent" | "details" | "setup" | "plugin";
 
 /**
@@ -76,10 +83,10 @@ export default function ConnectionWizard({ devices, defaultDeviceId, siteUrl, no
     if (step === "details") void create(); else go(at + 1);
   }
 
-  const titles: Record<Step, string> = { device: t.wizardDeviceTitle, agent: t.wizardClientTitle, details: t.wizardDetailsTitle, setup: t.wizardSecretTitle, plugin: t.pluginTitle };
+  const titles: Record<Step, string> = { device: t.wizardDeviceTitle, agent: t.wizardClientTitle, details: t.wizardDetailsTitle, setup: t.wizardSecretTitle, plugin: NATIVE ? t.nativeTitle : t.pluginTitle };
   const ledes: Partial<Record<Step, string>> = { device: t.wizardDeviceBody, agent: t.wizardClientBody };
   // What each finished step settled, shown under its label so later steps never need a separate summary.
-  const values: Partial<Record<Step, string>> = { device: device?.name ?? t.connectionUnbound, agent: plugin ? t.pluginOption : profile.label, details: days === null ? t.permanentOption : t.days(days) };
+  const values: Partial<Record<Step, string>> = { device: device?.name ?? t.connectionUnbound, agent: plugin ? (NATIVE ? t.nativeOption : t.pluginOption) : profile.label, details: days === null ? t.permanentOption : t.days(days) };
   const labels = plugin ? t.wizardStepsPlugin : t.wizardSteps;
   // The plugin has no `self`: its agent names the device, so it needs one.
   const blocked = (step === "agent" && plugin && !device) || (step === "device" && choice === null);
@@ -122,8 +129,8 @@ export default function ConnectionWizard({ devices, defaultDeviceId, siteUrl, no
             <span>{item.label}<small>{item.description[lang]}</small></span></label>)}
           <label className="choice stacked">
             <input type="radio" name="connection-client" checked={plugin} onChange={() => setProfileId(PLUGIN)} />
-            <span>{t.pluginOption}<small>{t.pluginOptionBody}</small></span></label>
-          {blocked && <p className="muted">{t.pluginNeedsDevice}</p>}
+            <span>{NATIVE ? t.nativeOption : t.pluginOption}<small>{NATIVE ? t.nativeOptionBody : t.pluginOptionBody}</small></span></label>
+          {blocked && <p className="muted">{NATIVE ? t.nativeNeedsDevice : t.pluginNeedsDevice}</p>}
         </>}
 
         {step === "details" && <>
@@ -153,8 +160,11 @@ export default function ConnectionWizard({ devices, defaultDeviceId, siteUrl, no
         firstOnDevice={firstOnDevice} />
     </div>}
     {step === "plugin" && device && <div className="wizard-pane">
-      <PluginSetup device={device} siteUrl={siteUrl} notify={notify} onBack={() => go(at - 1)}
-        onConfirm={() => { onPluginConfirmed(device.id); notify(t.toastPluginConfirmed(device.name)); onClose(); }} />
+      {NATIVE
+        ? <NativeMcpSetup device={device} siteUrl={siteUrl} notify={notify} onBack={() => go(at - 1)}
+            onConfirm={() => { onPluginConfirmed(device.id); notify(t.toastNativeConfirmed(device.name)); onClose(); }} />
+        : <PluginSetup device={device} siteUrl={siteUrl} notify={notify} onBack={() => go(at - 1)}
+            onConfirm={() => { onPluginConfirmed(device.id); notify(t.toastPluginConfirmed(device.name)); onClose(); }} />}
     </div>}
     {riskOpen && <PermanentConnectionDialog onCancel={() => { setRiskOpen(false); requestAnimationFrame(() => validity.current?.focus()); }}
       onConfirm={() => { setDays(null); setRiskOpen(false); requestAnimationFrame(() => validity.current?.focus()); }} />}

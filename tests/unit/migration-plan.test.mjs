@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { LEDGER_TABLE, LEGACY_PROBES, planMigrations, withLedgerRow } from "../../tooling/database/migration-plan.mjs";
 
@@ -35,4 +36,10 @@ test("the ledger row is appended in the same file as the migration", () => {
   const sql = withLedgerRow("CREATE TABLE a (id text)\n", "0009_x", 42);
   assert.equal(sql, `CREATE TABLE a (id text);\nINSERT INTO ${LEDGER_TABLE} (tag, applied_at) VALUES ('0009_x', 42);\n`);
   assert.ok(withLedgerRow("SELECT 1;", "t", 1).startsWith("SELECT 1;\nINSERT"));
+});
+
+test("the remote runner refuses a local state directory before it reaches any database", () => {
+  const result = spawnSync(process.execPath, ["scripts/db/migrate-local.mjs", "--remote", "--state-dir", "unused"], { cwd: new URL("../..", import.meta.url), encoding: "utf8" });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /--state-dir applies to the local database only/);
 });

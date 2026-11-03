@@ -2,6 +2,7 @@ import http from "node:http";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { identityHeaders } from "../support/test-identity.mjs";
 
 /** Compare incoming connection reuse while exercising rejection without any successful database write. */
 export async function probeLocalPreview(base) {
@@ -26,7 +27,7 @@ export async function probeLocalPreview(base) {
           try {
             result.status = await new Promise((resolve, reject) => {
               const request = http.request(new URL(route, base), { method, agent,
-                headers: { ...(authenticated ? { "oai-authenticated-user-id": "preview-probe-synthetic" } : {}),
+                headers: { ...(authenticated ? { ...identityHeaders("preview-probe-synthetic") } : {}),
                   ...(body ? { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) } : {}) } }, response => {
                 if (response.headers["x-preview-boot"]) result.boot = response.headers["x-preview-boot"];
                 response.resume(); response.once("end", () => resolve(response.statusCode)); response.once("error", reject);

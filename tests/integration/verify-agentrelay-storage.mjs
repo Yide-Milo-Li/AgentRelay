@@ -4,6 +4,7 @@ import { executeLocalSql } from "../support/local-storage-fixtures.mjs";
 import { testRequest } from "../support/integration-http.mjs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { identityHeaders } from "../support/test-identity.mjs";
 
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5178";
 if (!["127.0.0.1", "localhost"].includes(new URL(base).hostname)) throw new Error("Storage checks require a local database.");
@@ -14,7 +15,7 @@ const check = (name, condition) => { assert.ok(condition, name); passed.push(nam
 const quote = value => `'${String(value).replaceAll("'", "''")}'`;
 const sql = executeLocalSql;
 async function request(route, method = "GET", data, user = owner, extra = {}) {
-  return testRequest(base + route, { method, headers: { ...(user ? { "oai-authenticated-user-id": user } : {}), "Content-Type": "application/json", Connection: "close", ...extra },
+  return testRequest(base + route, { method, headers: { ...(user ? { ...identityHeaders(user) } : {}), "Content-Type": "application/json", Connection: "close", ...extra },
     body: data === undefined ? undefined : JSON.stringify(data) });
 }
 const create = async (content = "payload", title = "Storage check", user = owner) => {
@@ -68,7 +69,7 @@ try {
     return response.data.result;
   };
   const removed = await create("transport disappearance"); await remove([{ id: removed.id, version: 1 }]);
-  for (const [endpoint, headers] of [["/mcp", { "oai-authenticated-user-id": owner }], ["/api/agent/mcp", { Authorization: `Bearer ${token.token}` }]]) {
+  for (const [endpoint, headers] of [["/mcp", { ...identityHeaders(owner) }], ["/api/agent/mcp", { Authorization: `Bearer ${token.token}` }]]) {
     check(`deleted handoff cannot be read through ${endpoint}`, (await rpc(endpoint, headers, "get_handoff", { id: removed.id })).isError);
     check(`deleted handoff cannot be listed through ${endpoint}`, !JSON.parse((await rpc(endpoint, headers, "list_handoffs", {})).content[0].text).handoffs.some(row => row.id === removed.id));
   }

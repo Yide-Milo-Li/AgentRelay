@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Copy, Check, Download, Link2, RotateCcw, Trash2, ChevronLeft, Ellipsis, Info, FileText, Code2, FileDown, Reply, NotebookPen, GitBranch, GitCommitHorizontal } from "lucide-react";
 import { useLang } from "@/components/providers/LanguageProvider";
-import { RouteFull, RouteMini } from "@/features/handoffs/components/RouteStrip";
+import { RouteFull, RouteMini, type RouteRow } from "@/features/handoffs/components/RouteStrip";
 import { copyText } from "@/shared/browser/clipboard";
 import { formatDay } from "@/shared/formatting/date";
 import { type Handoff } from "@/shared/contracts/handoffs";
@@ -17,14 +17,17 @@ import { ProjectTag } from "./ProjectTag";
 import CompleteWithNoteDialog from "./CompleteWithNoteDialog";
 import { checkoutCommand, shortCommit } from "../git-commands";
 
+/** One handoff in the thread list: the server's thread entry, or a sample row. */
+export type ThreadEntry = RouteRow & { id: string; title: string; createdAt: number };
+
 /**
- * `thread` holds the loaded handoffs of this handoff's thread, oldest first, including this one; it is empty when the
+ * `thread` holds the active handoffs of this handoff's thread, oldest first, including this one; it is empty when the
  * handoff neither replies to another nor has replies. `onStatus` takes a receipt only when completing.
  */
 /** Pixels scrolled before the pinned header starts to fade, and the downward travel over which it fades out completely. */
 const HEAD_FADE_START = 24, HEAD_FADE_DISTANCE = 160;
 
-type Props = { row: Handoff; thread: readonly Handoff[]; devices: DeviceIndex; projects: ProjectIndex; demo: boolean; busy: boolean; characters: boolean; chosen: boolean;
+type Props = { row: Handoff; thread: readonly ThreadEntry[]; devices: DeviceIndex; projects: ProjectIndex; demo: boolean; busy: boolean; characters: boolean; chosen: boolean;
   onStatus: (status: string, result?: string) => void; onDelete: () => void; onBack: () => void; onReply: () => void; onOpen: (id: string) => void; notify: (message: string) => void };
 
 export default function HandoffDetail({ row, thread, devices, projects, demo, busy, characters, chosen, onStatus, onDelete, onBack, onReply, onOpen, notify }: Props) {

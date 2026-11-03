@@ -1,12 +1,12 @@
 // Local stdio MCP server that relays to an AgentRelay Site. Point an agent that only runs local MCP servers (or cannot
 // send custom headers) at this script; see docs/guides/local-bridge.md.
-// Environment: AGENTRELAY_MCP_URL (or --url), AGENTRELAY_AGENT_TOKEN, AGENTRELAY_SITES_GATEWAY_TOKEN.
+// Environment: AGENTRELAY_MCP_URL (or --url), AGENTRELAY_AGENT_TOKEN, and on ChatGPT Sites AGENTRELAY_SITES_GATEWAY_TOKEN.
 // Stdout carries protocol messages only; every diagnostic goes to stderr and never contains a credential.
 import { createInterface } from "node:readline";
 import { requireSecrets, resolveSite } from "../../tooling/agents/device-setup.mjs";
 import { createBridge } from "../../tooling/agents/mcp-bridge.mjs";
 
-const SECRETS = { label: "the bridge", secrets: ["AGENTRELAY_AGENT_TOKEN", "AGENTRELAY_SITES_GATEWAY_TOKEN"] };
+const SECRETS = { label: "the bridge", secrets: ["AGENTRELAY_AGENT_TOKEN"] };
 
 function fail(message) {
   console.error(`agentrelay bridge: ${message}`);
@@ -34,7 +34,7 @@ try {
 const bridge = createBridge({
   endpoint,
   agentToken: process.env.AGENTRELAY_AGENT_TOKEN,
-  gatewayToken: process.env.AGENTRELAY_SITES_GATEWAY_TOKEN,
+  gatewayToken: process.env.AGENTRELAY_SITES_GATEWAY_TOKEN?.trim() || null,
   coreSchemas,
   initializeOnly,
   write: (message) => process.stdout.write(`${JSON.stringify(message)}\n`),

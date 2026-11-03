@@ -1,27 +1,27 @@
 import { AgentRelayError } from "@/server/core/agent-relay-error";
 import type { Actor } from "@/server/core/actor";
 import { resolveAgentToken, recordAgentAuthentication, recordAgentClient, agentConnectionInfo } from "@/server/agent-tokens";
-import { userFromHeaders } from "./chatgpt-user";
+import { platformUserFrom, SIGN_IN_REQUIRED } from "./platform-user";
 import type { WorkspaceInfo } from "@/shared/contracts/workspace";
 import { sharedWorkspaceOwner } from "./workspace";
 
-export { requireChatGPTUser, getChatGPTUser, chatGPTSignInPath, chatGPTSignOutPath } from "./chatgpt-user";
+export { pageIdentity, getPlatformUser } from "./platform-user";
 
 /** Map the platform-authenticated user onto the workspace that scopes their records. */
-export function actorFrom(request: Request): Actor {
-  const userId = request.headers.get("oai-authenticated-user-id");
-  if (!userId) throw new AgentRelayError("Sign in with ChatGPT first.", 401);
-  const name = userFromHeaders(request.headers)?.displayName ?? null, workspace = sharedWorkspaceOwner();
-  return { owner: workspace ?? userId, userId, name };
+export async function actorFrom(request: Request): Promise<Actor> {
+  const user = await platformUserFrom(request.headers);
+  if (!user) throw new AgentRelayError(SIGN_IN_REQUIRED, 401);
+  const workspace = sharedWorkspaceOwner();
+  return { owner: workspace ?? user.userId, userId: user.userId, name: user.displayName };
 }
 /** Whether sharing is on and, while it is off, the caller's own id to configure it with. */
-export function workspaceInfoFrom(request: Request): WorkspaceInfo {
-  const { userId, name } = actorFrom(request);
+export async function workspaceInfoFrom(request: Request): Promise<WorkspaceInfo> {
+  const { userId, name } = await actorFrom(request);
   const identity = { viewerName: name, workspaceLabel: "AgentRelay" };
   return sharedWorkspaceOwner() ? { shared: true, ...identity } : { shared: false, userId, ...identity };
 }
-export function ownerFrom(request: Request) {
-  return actorFrom(request).owner;
+export async function ownerFrom(request: Request) {
+  return (await actorFrom(request)).owner;
 }
 /** Resolve the stored owner only after validating the bearer credential format. */
 async function authenticateAgent(request: Request) {

@@ -1,12 +1,12 @@
 # Agent connections
 
-One Site is one workspace. Create a separate connection for each agent on each device. A connection's device is where its agent runs: the agent can call it `self`. The device never restricts the token's access. Every token acts as its issuer across the workspace.
+One deployment is one workspace. Create a separate connection for each agent on each device. A connection's device is where its agent runs: the agent can call it `self`. The device never restricts the token's access. Every token acts as its issuer across the workspace.
 
 ## Set up an agent
 
 1. **Choose the device in the Site.** In **Agents → New connection**, pick the device the agent runs on (the setup checklist opens this with the current device chosen), then the agent.
-2. **Create the connection, or follow the plugin steps.** A token connection gets a name and a lifetime, then **Create connection** shows its one-time token and setup command. The Site's plugin issues no token; see [The Site's plugin](#the-sites-plugin).
-3. **Run the command on that device.** In the AgentRelay folder, run the command the wizard shows and paste the Agent Token when asked. The first connection on a device also asks for the Site's [gateway token](#the-gateway-token). Restart or reconnect the agent and ask it: "Any handoffs for me?"
+2. **Create the connection, or follow the plugin steps.** A token connection gets a name and a lifetime, then **Create connection** shows its one-time token and setup command. The Site's plugin issues no token; see [The Site's plugin](#the-sites-plugin). On a standalone Cloudflare deployment the token-free option is a native MCP client instead; see [Native MCP clients on Cloudflare](#native-mcp-clients-on-cloudflare).
+3. **Run the command on that device.** In the AgentRelay folder, run the command the wizard shows and paste the Agent Token when asked. On a ChatGPT Site, the first connection on a device also asks for the Site's [gateway token](#the-gateway-token); a standalone Cloudflare deployment has none. Restart or reconnect the agent and ask it: "Any handoffs for me?"
 
 | Agent | Profile | Transport | Notes |
 | --- | --- | --- | --- |
@@ -14,7 +14,8 @@ One Site is one workspace. Create a separate connection for each agent on each d
 | Codex | `codex` | Direct HTTP with a header helper on Codex >=0.164.0, otherwise the bridge | The Site's plugin is the alternative that needs no token. |
 | Antigravity | `antigravity` | Local bridge | |
 | DeepSeek Harness | `deepseek-harness` | Local bridge | See [its guide](deepseek-harness-connection.md). |
-| ChatGPT or Codex (this Site's plugin) | none | The Site's native `/mcp` | No token, repository or Node.js; see below. |
+| ChatGPT or Codex (this Site's plugin) | none | The Site's native `/mcp` | ChatGPT Sites only. No token, repository or Node.js; see below. |
+| Claude Code, Codex or ChatGPT, signed in with Google | none | The deployment's native `/mcp`, through Cloudflare Access | Standalone Cloudflare only. No token or local client; see below. |
 
 The default lifetime is 90 days. The UI also offers 30 days, 365 days and **Permanent**. Selecting Permanent opens a risk dialog, initially focused on Cancel. Cancel, Escape or clicking the backdrop preserves the previous choice. Confirming the dialog only selects the lifetime; the final Create action issues the token. Selecting another finite lifetime clears the acknowledgement, and selecting Permanent again asks again. Existing tokens are never extended automatically.
 
@@ -30,11 +31,17 @@ Publishing a Site that declares the `mcp` capability creates a private ChatGPT/C
 
 The page cannot see plugin connections: they do not appear in the connection list, have no last-use time and no device. The setup checklist therefore records "this device uses the plugin" as your own confirmation in that browser. Other members need access to the plugin, its App and the Site; Site Sharing alone does not grant the plugin. Plugin sharing is documented for Business and Enterprise; sharing between personal accounts is not promised. The image `upload` and `download` commands still need a token connection.
 
+## Native MCP clients on Cloudflare
+
+On a standalone Cloudflare deployment, Claude Code, the Codex CLI and ChatGPT can connect to `/mcp` without a token: the first time, the client opens a browser and you sign in with Google through Cloudflare Access (Managed OAuth), so it acts as you. The wizard shows each client's command with the deployment's address, then a device rule for Claude Code or Codex and a first message for ChatGPT, because a native client has no `self`. Like the plugin, these connections are not in the connection list, so the setup checklist records your confirmation. Which clients have been connected this way is listed in [Deploy to Cloudflare](cloudflare-deployment.md#native-mcp-clients); image `upload` and `download` still need a token connection.
+
 ## The gateway token
+
+Only a ChatGPT Site has a gateway token. A standalone Cloudflare deployment lets `/api/agent/*` through Access, so its agents need only their Agent Token: `connect` (client 0.7.0 or later) asks the deployment first and saves no gateway reference when none is needed.
 
 A private Site lets a request past its Sites sign-in gate only when it carries the Site's gateway token, which `get_site` returns as `siwc_bypass_bearer_token` and agents send as `OAI-Sites-Authorization`. It supplies no identity and grants nothing inside AgentRelay without an Agent Token. It is one credential per Site, not tied to an agent, device or operating system: the client saves it per Site origin and every agent on the device reuses it, while each Agent Token is saved per connection.
 
-On a device with Codex that has access to the Site, ask Codex to save it (the wizard and the [first deployment guide](first-deployment.md#the-gateway-token) have the exact request): read the existing token with `get_site`, pass it on stdin to `node scripts/agents/agentrelay.mjs gateway --url <site> --stdin`, never print it or write it to the repository, retain it in session memory only long enough to pass it on, and never call `generate_siwc_bypass_token`, which rotates it for every device. `gateway --stdin` saves the token only after the Site lets a request with it through.
+On a device with Codex that has access to the Site, ask Codex to save it (the wizard and the [Sites deployment guide](first-deployment.md#the-gateway-token) have the exact request): read the existing token with `get_site`, pass it on stdin to `node scripts/agents/agentrelay.mjs gateway --url <site> --stdin`, never print it or write it to the repository, retain it in session memory only long enough to pass it on, and never call `generate_siwc_bypass_token`, which rotates it for every device. `gateway --stdin` saves the token only after the Site lets a request with it through.
 
 On a device without Codex, take it from a device that has it:
 
@@ -50,7 +57,7 @@ The token has no documented fixed lifetime. Save it once per device and reuse it
 
 Install Node.js >=22.13.0 and get a copy of this repository; no `npm install` is needed. The first run of `scripts/agents/agentrelay.mjs` installs the client into `~/.agentrelay/client/` and runs every command from there: it copies the OS keyring addon from the checkout's dependencies when they are installed, and otherwise installs that one pinned package with npm. A failed install leaves the installed versions as they were. An optional Windows x64 client archive can replace the repository on receiving devices after a Release is published. There is no required desktop app or background service.
 
-The local token client currently supports one Site per OS user and refuses connections to a second Site. Its manifest, MCP entries, rules, skills and OS credentials belong to that OS user, independently of the ChatGPT account currently signed in. Use a separate OS user or machine when testing another Site; changing ChatGPT accounts does not isolate these files or credentials.
+The local token client currently supports one Site per OS user and refuses connections to a second Site, naming the `disconnect` command that removes the first one's connections (see [Remove access](#remove-access)). Its manifest, MCP entries, rules, skills and OS credentials belong to that OS user, independently of the ChatGPT account currently signed in. To move a device to another Site or a standalone Cloudflare deployment, run `disconnect` first; to use two at once, use a separate OS user or machine. Changing ChatGPT accounts does not isolate these files or credentials.
 
 Run the command shown by your Site, for example:
 
@@ -58,9 +65,9 @@ Run the command shown by your Site, for example:
 node scripts/agents/agentrelay.mjs connect --profile codex --device laptop --connection <connection-id> --url https://<your-site>/api/agent/mcp
 ```
 
-It first says which agent, device, Site and connection it sets up, then asks for the Agent Token with hidden input, and for the gateway token only when none is saved for that Site on this device. If the gateway token was rotated, rerun connect with `--renew-gateway` to enter and replace it. Never paste credentials into command arguments, issue reports or repository files.
+It first says which agent, device, Site and connection it sets up, then asks for the Agent Token with hidden input, and for the gateway token only when the Site needs one and none is saved for it on this device. If the gateway token was rotated, rerun connect with `--renew-gateway` to enter and replace it. Never paste credentials into command arguments, issue reports or repository files.
 
-For automation, `--stdin` accepts one JSON object with `agentToken` and `gatewayToken` through a pipe. Do not put that JSON in shell history or a tracked file. `--from-env` explicitly imports the old `AGENTRELAY_AGENT_TOKEN` and `AGENTRELAY_SITES_GATEWAY_TOKEN` (or Codex's gateway header) from the current process. It does not overwrite or delete those legacy variables.
+For automation, `--stdin` accepts one JSON object with `agentToken` and, for a Site behind the Sites gate, `gatewayToken` through a pipe. Do not put that JSON in shell history or a tracked file. `--from-env` explicitly imports the old `AGENTRELAY_AGENT_TOKEN` and `AGENTRELAY_SITES_GATEWAY_TOKEN` (or Codex's gateway header) from the current process. It does not overwrite or delete those legacy variables.
 
 Before writing agent configuration, the client verifies exactly the five expected tools and `/api/agent/connection`. It refuses a different connection id or device label. It preflights both configuration files, preserves unrelated entries and restores its changes after failed writes. An unmanaged Codex AgentRelay table must be reviewed and removed manually before migration; it is never silently overwritten.
 
@@ -87,7 +94,7 @@ Auto mode uses direct HTTP with a dynamic header helper for verified compatibili
 
 Use the clients' normal default configuration homes for this iteration; custom `CLAUDE_CONFIG_DIR`/`CODEX_HOME` configurations require explicit config/rule/skill paths (`--config-file`, `--rule-file`, `--skill-dir`). If Codex uses `AGENTS.override.md`, select that file instead. Configuration stores paths and connection ids, never the tokens. Replacing a managed entry removes its previous bearer/header/environment settings, which could otherwise take precedence over a helper. Review existing OAuth or project-level overrides if the client still selects another credential.
 
-The client installs into `~/.agentrelay/client/versions/<version>/` with a stable `~/.agentrelay/client/agentrelay.mjs` launcher. The private `~/.agentrelay/connections.json` manifest stores the URL, connection id, profile, device id and credential references. Configurations and generated image commands point at the stable launcher and survive moving/deleting the checkout. Re-running setup replaces marked blocks. Only one Site is supported per OS user in this iteration.
+The client installs into `~/.agentrelay/client/versions/<version>/` with a stable `~/.agentrelay/client/agentrelay.mjs` launcher. The private `~/.agentrelay/connections.json` manifest stores the URL, connection id, profile, device id and credential references. Configurations and generated image commands point at the stable launcher and survive moving/deleting the checkout. Re-running setup replaces marked blocks; `disconnect` removes them. Only one Site is supported per OS user in this iteration.
 
 To update, run the new repository/archive's `node scripts/agents/agentrelay.mjs install` (it prints what it installed; `--json` for the machine-readable result); keep the previous version for `node <stable-launcher> rollback`. Reconnect/restart the agent after switching versions. Release archives include the native dependency, its license texts, provenance and a SHA-256 checksum; they require Node.js and do not bundle it.
 
@@ -133,6 +140,17 @@ The handoff rule that `connect` writes changes when the protocol gains a step (m
 
 Revoke an individual connection immediately in Agents. Revocation works for finite and permanent tokens. Revoked/expired connections can then be removed permanently; active permanent connections cannot be removed by inactive cleanup.
 
+To remove a device's own setup, run in the AgentRelay folder:
+
+```text
+node scripts/agents/agentrelay.mjs disconnect --url https://<your-site>
+node scripts/agents/agentrelay.mjs disconnect --connection <connection-id>
+```
+
+`--url` removes every connection to that Site saved on this device; `--connection` removes one. Pass exactly one of them. For each removed connection, the client removes its entry from `~/.agentrelay/connections.json` and its Agent Token from the OS credential store or, for `--storage env`, its environment variable (Windows user variable or shell profile block). The Site's gateway token goes too once no remaining connection on the device uses it. If the connection was an agent's active one, the AgentRelay MCP entry, rule block and skill that `connect` wrote are removed with the same writers, leaving unrelated entries and text as they were; an MCP entry that starts a different connection is kept and reported. It prints what it removed (names and paths, never a credential), then restart the affected agents.
+
+`disconnect` needs no network, so it works when the old Site has been deleted. It revokes nothing on the Site: if the Site still exists, revoke the connections in Agents as well. It refuses an unknown connection, a Site with no saved connection and a locked credential store before changing anything (client 0.8.0 or later).
+
 For shared workspaces, removing a viewer in Sites Sharing and revoking tokens are separate actions. Group the connection list by **Member** and use **Revoke all** on an issuer's group header: it previews that issuer's whole active set (including permanent ones, and including rows hidden by filters). Confirmation submits exactly the displayed ids. A changed set returns 409 and requires a refreshed preview. Issuers with the same display name remain separate; platform user ids are never shown. Every trusted member has equal management rights.
 
 ## Extend, rotate and set up again
@@ -164,5 +182,6 @@ Every change to a connection is checked against the version the page last loaded
 - Config conflict: review the unmanaged AgentRelay entry. Preserve unrelated servers/settings, remove the conflicting entry and retry.
 - Failed setup: the client restores its config and credential writes. If storage itself fails during recovery, follow the reported manual recovery instructions; do not claim the agent is connected.
 - Lost one-time token: revoke that connection and create another; there is no recovery endpoint.
+- `connect` refuses with "This client currently supports one Site": the device still has connections to the Site it names. Run `disconnect --url <that Site>`, then connect again. If `disconnect` reports a credential it could not remove, delete that entry by hand (Windows Credential Manager, Keychain or Secret Service, service `AgentRelay`), or the named environment variable.
 
 Live fresh-account acceptance on 2026-10-31–2026-11-01 verified first private deployment and a Windows Codex token connection through the local bridge: OS credential storage, managed skill installation and an Agent read-only inbox call passed. A second physical Windows device used the Site plugin to read, claim, complete and reply to a synthetic handoff; both devices made read-only calls after redeployment of the same saved version. These checks used source from before the framework and toolchain upgrade; the upgraded build has since been deployed once, to a disposable test Site on 2026-11-02, where only browser notifications were checked, so these agent flows have not been retested on it. The token device was a reset existing user with retained client binaries and OS credentials, so a pristine-user install is not established. The macOS plugin run paused after sign-in and device selection. R2 object persistence, direct header-helper invocation and macOS/Linux local token-client acceptance remain open. See [first deployment, Known limits](first-deployment.md#known-limits) for the scope and remaining checks.

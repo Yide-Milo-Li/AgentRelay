@@ -5,3 +5,6 @@
 export type WorkspaceInfo = ({ shared: true } | { shared: false; userId: string }) & {
   viewerName: string | null; workspaceLabel: string;
 };
+
+/** Why a standalone deployment's page has nobody to render for: no Access sign-in, missing settings, or unreachable keys. */
+export type SignInProblem = "signed-out" | "unconfigured" | "keys-unavailable";

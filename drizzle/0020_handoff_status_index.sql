@@ -1,0 +1,1 @@
+CREATE INDEX `handoffs_owner_status_created` ON `handoffs` (`owner_id`,`status`,`created_at`,`id`,`expires_at`);

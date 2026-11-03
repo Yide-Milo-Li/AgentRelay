@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { asAnimated, corrupt, flat, fromPixels, padTo } from "../support/image-fixtures.mjs";
 import { assertSetIsValid, buildVerificationSet } from "../support/client-verification-set.mjs";
+import { identityHeaders } from "../support/test-identity.mjs";
 
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5178";
 if (!["127.0.0.1", "localhost"].includes(new URL(base).hostname)) throw new Error("Attachment checks require a local Worker and database.");
@@ -20,7 +21,7 @@ const quote = value => `'${String(value).replaceAll("'", "''")}'`;
 const sql = async command => (await executeLocalSql(command))[0].results;
 /** Read an object straight out of the local R2 store: its bytes, or null when the key does not exist. */
 const r2Object = id => readLocalR2Object(`a/${id}`);
-const identity = user => ({ "oai-authenticated-user-id": user });
+const identity = user => ({ ...identityHeaders(user) });
 const bearer = token => ({ Authorization: `Bearer ${token}` });
 
 /** A single bounded attempt; proxy failures must remain visible during acceptance. */
@@ -202,7 +203,7 @@ try {
   const viaMcp = toolJson(await rpc("create_handoff", { title: "MCP images", content: text, attachmentIds: [m2.id, m1.id], sourceDevice: "Laptop", targetDevice: "Desktop", requestKey: crypto.randomUUID() }));
   check("MCP create_handoff binds images and returns a summary with their count", viaMcp.attachmentCount === 2 && !("content" in viaMcp) && !("attachments" in viaMcp));
   const manifest = toolJson(await rpc("get_handoff", { id: viaMcp.id }));
-  check("get_handoff returns the original text and the ordered manifest", manifest.content === text && manifest.attachments.map(item => item.id).join() === [m2.id, m1.id].join()
+  check("get_handoff returns the original text and the ordered manifest", manifest.prompt === text && manifest.attachments.map(item => item.id).join() === [m2.id, m1.id].join()
     && manifest.attachments[0].sha256 === sha256(originals.webp.bytes));
   const image = tool(await rpc("get_handoff", { id: viaMcp.id, attachmentId: m2.id }));
   check("get_handoff with attachmentId returns identifying text plus one image block", image.content.length === 2 && image.content[0].type === "text" && image.content[1].type === "image");
@@ -331,7 +332,7 @@ try {
     const nearHandoff = toolJson(await rpc("create_handoff", { title: "Near limit via CLI", sourceDevice: "Laptop", targetDevice: "Desktop", requestKey: crypto.randomUUID(), attachmentIds: printed.attachmentIds }));
     const nearBlocks = [], nearManifest = toolJson(await rpc("get_handoff", { id: nearHandoff.id }));
     for (const info of nearManifest.attachments) nearBlocks.push(tool(await rpc("get_handoff", { id: nearHandoff.id, attachmentId: info.id })).content[1]);
-    check("near-limit images of every format come back byte for byte as image blocks", nearManifest.content === "" && nearBlocks.every((block, i) => block.mimeType === ["image/png", "image/jpeg", "image/webp"][i] && sha256(Buffer.from(block.data, "base64")) === sha256(near[i].bytes)));
+    check("near-limit images of every format come back byte for byte as image blocks", nearManifest.prompt === "" && nearBlocks.every((block, i) => block.mimeType === ["image/png", "image/jpeg", "image/webp"][i] && sha256(Buffer.from(block.data, "base64")) === sha256(near[i].bytes)));
     const tenFiles = set.filter(item => item.name.startsWith("ten-"));
     const tenUpload = JSON.parse((await uploader(tenFiles.map(filePath))).stdout);
     check("ten images upload in one command, in order", tenUpload.attachmentIds.length === 10 && tenUpload.attachments.every((info, i) => info.filename === tenFiles[i].name));

@@ -1,12 +1,4 @@
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-
-export type ChatGPTUser = {
-  userId: string;
-  displayName: string;
-  email: string;
-  fullName: string | null;
-};
+import type { PlatformUser } from "./identity";
 
 const USER_ID_HEADER = "oai-authenticated-user-id";
 const USER_EMAIL_HEADER = "oai-authenticated-user-email";
@@ -18,15 +10,16 @@ const SIGN_IN_PATH = "/signin-with-chatgpt";
 const SIGN_OUT_PATH = "/signout-with-chatgpt";
 const CALLBACK_PATH = "/callback";
 
-export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
-  return userFromHeaders(await headers());
-}
-
-/** Read the identity headers the Sites platform attaches to an authenticated request. */
-export function userFromHeaders(requestHeaders: Headers): ChatGPTUser | null {
+/**
+ * Read the identity headers the Sites platform attaches to an authenticated request. Only a request that came through
+ * the Sites platform may be read this way: the platform strips these headers from what the client sends.
+ */
+export function sitesUserFrom(requestHeaders: Headers): PlatformUser | null {
   const userId = requestHeaders.get(USER_ID_HEADER);
+  if (!userId) return null;
   const email = requestHeaders.get(USER_EMAIL_HEADER);
-  if (!userId || !email) return null;
+  // Without the email the platform sent no profile, so the name stays unknown as well.
+  if (!email) return { userId, email: null, displayName: null, fullName: null };
 
   const encodedFullName = requestHeaders.get(USER_FULL_NAME_HEADER);
   const fullName =
@@ -43,21 +36,12 @@ export function userFromHeaders(requestHeaders: Headers): ChatGPTUser | null {
   };
 }
 
-export async function requireChatGPTUser(
-  returnTo: string,
-): Promise<ChatGPTUser> {
-  const user = await getChatGPTUser();
-  if (user) return user;
-
-  redirect(chatGPTSignInPath(returnTo));
-}
-
-export function chatGPTSignInPath(returnTo: string): string {
+export function sitesSignInPath(returnTo: string): string {
   const safeReturnTo = safeRelativeReturnPath(returnTo);
   return `${SIGN_IN_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
 }
 
-export function chatGPTSignOutPath(returnTo = "/"): string {
+export function sitesSignOutPath(returnTo = "/"): string {
   const safeReturnTo = safeRelativeReturnPath(returnTo);
   return `${SIGN_OUT_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
 }

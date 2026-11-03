@@ -254,6 +254,8 @@ svg { flex-shrink: 0; }
 
 .list { flex: 1; overflow-y: auto; padding: 2px 8px 8px; }
 .list-empty { padding: 40px 16px; text-align: center; color: var(--muted); font-size: 14px; }
+/* Long lists end in one button that loads the next page. */
+.list-more { display: block; margin: 10px auto 4px; }
 .row { display: grid; gap: 10px; width: 100%; padding: 14px 12px; border-radius: 10px; text-align: left; transition: background-color 0.2s; animation: rise 0.5s var(--ease) both; animation-delay: calc(var(--i, 0) * 32ms); }
 .row:hover { background: var(--sunken); }
 .row[aria-current="true"] { background: var(--select); }
@@ -324,6 +326,8 @@ svg { flex-shrink: 0; }
 .detail-head:has(:focus-visible, [data-menu-open]) { --fade: 0 !important; pointer-events: auto; }
 .back { display: none; }
 .detail h1 { font-size: 28px; font-weight: 620; line-height: 1.25; letter-spacing: -0.02em; text-wrap: balance; overflow-wrap: anywhere; }
+/* The selected handoff before its record arrives: its summary, then a quiet note. */
+.detail-loading > p { margin-top: 18px; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 20px; }
 .actions-gap { flex: 1; }
 .menu-wrap { position: relative; }

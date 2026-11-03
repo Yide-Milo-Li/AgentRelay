@@ -44,20 +44,24 @@ export async function systemStore() {
 export async function readConnection(id, { home = clientHome(), env = process.env, store } = {}) {
   const record = readManifest(home).connections[id];
   if (!record || record.id !== id) throw new ClientError("Unknown local connection. Run connect on this device first.");
-  let agentToken, gatewayToken;
+  // A connection to a deployment without a sign-in gate on its agent path saved no gateway reference.
+  let agentToken, gatewayToken = null;
   try {
     if (record.storage === "env") {
-      agentToken = env[envName(record.credentialRef)]; gatewayToken = env[envName(record.gatewayRef)];
+      agentToken = env[envName(record.credentialRef)];
+      if (record.gatewayRef) gatewayToken = env[envName(record.gatewayRef)];
     } else {
       const vault = store ?? await systemStore();
-      agentToken = vault.get(record.credentialRef); gatewayToken = vault.get(record.gatewayRef);
+      agentToken = vault.get(record.credentialRef);
+      if (record.gatewayRef) gatewayToken = vault.get(record.gatewayRef);
     }
   } catch { throw new ClientError("Cannot read this connection's credentials. Unlock the OS credential store and reconnect."); }
-  if (!/^agentrelay_[a-f0-9]{64}$/i.test(agentToken ?? "") || !gatewayToken)
+  if (!/^agentrelay_[a-f0-9]{64}$/i.test(agentToken ?? "") || (record.gatewayRef && !gatewayToken))
     throw new ClientError("This connection's credentials are missing. Re-run connect; environment storage also needs a restarted terminal and agent.");
-  return { record, agentToken, gatewayToken };
+  return { record, agentToken, gatewayToken: gatewayToken || null };
 }
 
+/** The headers of an agent request. The Sites gateway header goes only to a Site that needs it. */
 export const authHeaders = ({ agentToken, gatewayToken }) => ({
-  Authorization: `Bearer ${agentToken}`, "OAI-Sites-Authorization": `Bearer ${gatewayToken}`,
+  Authorization: `Bearer ${agentToken}`, ...(gatewayToken ? { "OAI-Sites-Authorization": `Bearer ${gatewayToken}` } : {}),
 });

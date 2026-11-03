@@ -1,6 +1,7 @@
 // Exercise the real local HTTP/D1 path, including independent owners and racing receivers.
 import assert from "node:assert/strict";
 import { testRequest } from "../support/integration-http.mjs";
+import { identityHeaders } from "../support/test-identity.mjs";
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5177";
 if (!new URL(base).hostname.match(/^(127\.0\.0\.1|localhost)$/)) throw new Error("Integration checks only run against a local database.");
 const run = crypto.randomUUID();
@@ -8,7 +9,7 @@ const owner = `agentrelay-test-${run}`, stranger = `other-${run}`, crowded = `cr
 const ids = [], pagerIds = [];
 const passed = [];
 async function request(path, method = "GET", data, user = owner, extra = {}) {
-  return testRequest(base + path, { method, headers: { ...(user ? { "oai-authenticated-user-id": user, "oai-authenticated-user-email": "test@sites.test" } : {}), "Content-Type": "application/json", ...extra }, body: data === undefined ? undefined : JSON.stringify(data) });
+  return testRequest(base + path, { method, headers: { ...(user ? { ...identityHeaders(user, "test@sites.test") } : {}), "Content-Type": "application/json", ...extra }, body: data === undefined ? undefined : JSON.stringify(data) });
 }
 const check = (name, condition) => { assert.ok(condition, name); passed.push(name); };
 try {
@@ -22,7 +23,7 @@ try {
   check("create persists exact Unicode, CRLF and trailing newline", created.status === 201 && created.data.content === content);
   const id = created.data.id; ids.push(id);
   check("readback preserves prompt bytes", (await request(`/api/handoffs/${id}`)).data.content === content);
-  const download = await testRequest(base + `/api/handoffs/${id}/download`, { headers: { "oai-authenticated-user-id": owner } }, { format: "text" });
+  const download = await testRequest(base + `/api/handoffs/${id}/download`, { headers: { ...identityHeaders(owner) } }, { format: "text" });
   check("authenticated text attachment preserves exact prompt", download.status === 200 && download.headers.get("Content-Disposition")?.includes("attachment") && download.text === content);
   check("another owner cannot download", (await request(`/api/handoffs/${id}/download`, "GET", undefined, stranger)).status === 404);
   check("retry returns the same record", (await request("/api/handoffs", "POST", input)).data.id === id);
@@ -60,7 +61,7 @@ try {
   const summaryOnly = row => ["content", "result", "attachments", "ownerId", "requestKey"].every(key => !(key in row));
   check("MCP creates real persistent handoff", typeof mcpRow.id === "string" && mcpRow.version === 1 && mcpRow.status === "ready" && summaryOnly(mcpRow));
   const mcpRead = await rpc("tools/call", { name: "get_handoff", arguments: { id: mcpRow.id } });
-  check("MCP full readback preserves raw text", JSON.parse(mcpRead.result.content[0].text).content === content);
+  check("MCP full readback preserves raw text", JSON.parse(mcpRead.result.content[0].text).prompt === content);
   const mcpList = JSON.parse((await rpc("tools/call", { name: "list_handoffs", arguments: { status: "ready", targetDevice: "Desktop" } })).result.content[0].text);
   check("MCP filters unclaimed target-device inbox", mcpList.handoffs.length === 1 && mcpList.handoffs[0].id === mcpRow.id);
   check("MCP enforces owner isolation", (await rpc("tools/call", { name: "get_handoff", arguments: { id: mcpRow.id } }, stranger)).result.isError === true);

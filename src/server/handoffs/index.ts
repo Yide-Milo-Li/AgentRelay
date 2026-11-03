@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { getD1, getDb } from "@/server/db/client";
 import { handoffs } from "@/server/db/schema";
 import { AgentRelayError } from "@/server/core/agent-relay-error";
@@ -9,7 +9,7 @@ import { prepareProjectLink, resolveProjectFilter, type ProjectLink } from "@/se
 import { isUniqueViolation } from "@/server/core/sql-errors";
 import { isSelfRef, selfUnavailable } from "@/server/core/self-device";
 import { ANY_DEVICE_ID, RESERVED_DEVICE_NAME_KEYS, type Device } from "@/shared/contracts/devices";
-import { HANDOFF_LIMITS, type Handoff, type HandoffListItem, type HandoffThread } from "@/shared/contracts/handoffs";
+import { HANDOFF_LIMITS, HANDOFF_LIST, type Handoff, type HandoffListItem, type HandoffListPage, type HandoffListScope, type HandoffProjectCounts, type HandoffThread } from "@/shared/contracts/handoffs";
 import { deviceNameKey, isReservedDeviceName } from "@/shared/formatting/device-identity";
 import { projectNameKey } from "@/shared/formatting/project-identity";
 import { deleteOwnedHandoff } from "./storage";
@@ -99,18 +99,92 @@ export async function listHandoffs(owner: string, filters: Input = {}): Promise<
 export async function listHandoffSummaries(owner: string, filters: Input = {}, offset = 0): Promise<{ handoffs: HandoffListItem[]; nextOffset: number | null }> {
   const condition = await listCondition(owner, filters), size = Math.min(LIST_PAGE, LIST_WINDOW - offset);
   if (size <= 0) return { handoffs: [], nextOffset: null };
-  const rows = await getDb().select({ id: handoffs.id, title: handoffs.title, status: handoffs.status, version: handoffs.version,
-    sourceDevice: handoffs.sourceDevice, targetDevice: handoffs.targetDevice, createdAt: handoffs.createdAt, updatedAt: handoffs.updatedAt,
-    expiresAt: handoffs.expiresAt, project: handoffs.project, projectId: handoffs.projectId, sourceDeviceId: handoffs.sourceDeviceId,
-    targetDeviceId: handoffs.targetDeviceId, claimedBy: handoffs.claimedBy, claimedByDeviceId: handoffs.claimedByDeviceId,
-    createdByName: handoffs.createdByName, replyToId: handoffs.replyToId, threadId: handoffs.threadId, branch: handoffs.gitBranch,
-    baseCommit: handoffs.gitBaseCommit, attachmentCount: handoffs.attachmentCount,
-    // SQLite counts and cuts Unicode characters, so a preview never splits a surrogate pair.
-    preview: sql<string>`substr(${handoffs.content}, 1, ${PREVIEW_CHARACTERS})`, characters: sql<number>`length(${handoffs.content})`,
-    resultPreview: sql<string | null>`substr(${handoffs.result}, 1, ${PREVIEW_CHARACTERS})`, resultCharacters: sql<number | null>`length(${handoffs.result})` })
-    .from(handoffs).where(condition).orderBy(desc(handoffs.createdAt), desc(handoffs.id)).limit(size + 1).offset(offset);
+  const rows = await getDb().select(SUMMARY_COLUMNS).from(handoffs).where(condition).orderBy(desc(handoffs.createdAt), desc(handoffs.id)).limit(size + 1).offset(offset);
   const more = rows.length > size;
   return { handoffs: rows.slice(0, size).map(listItem), nextOffset: more && offset + size < LIST_WINDOW ? offset + size : null };
+}
+/** The columns of a list row, shared by the agent list and the browser's inbox list. */
+const SUMMARY_COLUMNS = { id: handoffs.id, title: handoffs.title, status: handoffs.status, version: handoffs.version,
+  sourceDevice: handoffs.sourceDevice, targetDevice: handoffs.targetDevice, createdAt: handoffs.createdAt, updatedAt: handoffs.updatedAt,
+  expiresAt: handoffs.expiresAt, project: handoffs.project, projectId: handoffs.projectId, sourceDeviceId: handoffs.sourceDeviceId,
+  targetDeviceId: handoffs.targetDeviceId, claimedBy: handoffs.claimedBy, claimedByDeviceId: handoffs.claimedByDeviceId,
+  createdByName: handoffs.createdByName, replyToId: handoffs.replyToId, threadId: handoffs.threadId, branch: handoffs.gitBranch,
+  baseCommit: handoffs.gitBaseCommit, attachmentCount: handoffs.attachmentCount,
+  // SQLite counts and cuts Unicode characters, so a preview never splits a surrogate pair.
+  preview: sql<string>`substr(${handoffs.content}, 1, ${PREVIEW_CHARACTERS})`, characters: sql<number>`length(${handoffs.content})`,
+  resultPreview: sql<string | null>`substr(${handoffs.result}, 1, ${PREVIEW_CHARACTERS})`, resultCharacters: sql<number | null>`length(${handoffs.result})` };
+
+const OPEN_STATUSES = ["ready", "claimed"];
+function scopeOf(value: unknown): HandoffListScope {
+  if (value === undefined || value === "" || value === "open") return "open";
+  if (value === "done") return "done";
+  throw new AgentRelayError("scope must be open or done.");
+}
+const scopeCondition = (scope: HandoffListScope) => scope === "done" ? eq(handoffs.status, "done") : inArray(handoffs.status, OPEN_STATUSES);
+/** The position after which a page continues: the last row's creation time and id, opaque to the browser. */
+function encodeCursor(row: { createdAt: number; id: string }) {
+  return btoa(JSON.stringify([row.createdAt, row.id])).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+}
+function decodeCursor(value: string): { createdAt: number; id: string } {
+  try {
+    const [createdAt, id] = JSON.parse(atob(value.replaceAll("-", "+").replaceAll("_", "/")));
+    if (Number.isSafeInteger(createdAt) && typeof id === "string" && /^[A-Za-z0-9_-]{1,100}$/.test(id)) return { createdAt, id };
+  } catch { /* Reported below. */ }
+  throw new AgentRelayError("Invalid list cursor.");
+}
+function listLimit(value: unknown) {
+  if (value === undefined || value === "") return HANDOFF_LIST.pageSize;
+  const limit = Number(value);
+  if (!Number.isInteger(limit) || limit < 1 || limit > HANDOFF_LIST.maxLimit) throw new AgentRelayError(`limit must be 1–${HANDOFF_LIST.maxLimit}.`);
+  return limit;
+}
+function searchText(value: unknown) {
+  if (value === undefined || value === "") return null;
+  if (typeof value !== "string" || value.length > HANDOFF_LIST.searchCharacters) throw new AgentRelayError(`Search text must be at most ${HANDOFF_LIST.searchCharacters} characters.`);
+  return value.trim() ? value : null;
+}
+/** The project condition of the inbox list: an id or name as for agents, or `none` for handoffs without a project. */
+async function inboxProjectFilter(owner: string, value: unknown) {
+  if (value === "none") return and(isNull(handoffs.projectId), eq(handoffs.project, ""));
+  return projectFilter(owner, value);
+}
+
+/**
+ * One page of the browser's inbox list: summaries only, filtered and searched in SQL, newest first, continued by a
+ * cursor rather than an offset so a new handoff never shifts a later page. The open count is the inbox badge.
+ */
+export async function listInboxPage(owner: string, input: Input = {}): Promise<HandoffListPage> {
+  const scope = scopeOf(input.scope), limit = listLimit(input.limit), q = searchText(input.q);
+  const status = input.status === undefined || input.status === "" ? undefined : String(input.status);
+  if (status && (scope !== "open" || !OPEN_STATUSES.includes(status))) throw new AgentRelayError("status must be ready or claimed, in the open scope.");
+  const cursor = typeof input.cursor === "string" && input.cursor ? decodeCursor(input.cursor) : null;
+  const [target, project] = await Promise.all([targetFilter(owner, input.target), inboxProjectFilter(owner, input.project)]);
+  const shared = and(active(owner), target, project,
+    // The same fields the browser searched before; SQLite's lower() folds ASCII letters only.
+    q ? sql`instr(lower(${handoffs.title} || char(10) || ${handoffs.project} || char(10) || ${handoffs.content}), lower(${q})) > 0` : undefined,
+    cursor ? or(lt(handoffs.createdAt, cursor.createdAt), and(eq(handoffs.createdAt, cursor.createdAt), lt(handoffs.id, cursor.id))) : undefined);
+  // One query per status: SQLite pages `status = ?` through the status index, but answers `status IN (...)` by walking
+  // the creation index past every other row. Each reads at most one row past the page; the newest of both form it.
+  const statuses = status ? [status] : scope === "done" ? ["done"] : OPEN_STATUSES;
+  const [open, ...pages] = await Promise.all([
+    getDb().select({ n: count() }).from(handoffs).where(and(active(owner), scopeCondition("open"))),
+    ...statuses.map(value => getDb().select(SUMMARY_COLUMNS).from(handoffs).where(and(shared, eq(handoffs.status, value)))
+      .orderBy(desc(handoffs.createdAt), desc(handoffs.id)).limit(limit + 1)),
+  ]);
+  // Newest first by (createdAt, id), the order SQLite used within each status; ids are ASCII, so < compares as SQLite does.
+  const rows = pages.flat().sort((a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0)).slice(0, limit + 1);
+  const page = rows.slice(0, limit);
+  return { handoffs: page.map(listItem), nextCursor: rows.length > limit ? encodeCursor(page[page.length - 1]) : null, counts: { open: open[0]?.n ?? 0 } };
+}
+
+/** Handoffs per project id in a scope (or both), read when a project menu or Manage projects opens, never per poll. */
+export async function countHandoffsByProject(owner: string, input: Input = {}): Promise<HandoffProjectCounts> {
+  const scope = input.scope === "all" ? null : scopeOf(input.scope);
+  const rows = await getDb().select({ id: handoffs.projectId, n: count() }).from(handoffs)
+    // A legacy name that is not filed under a project yet belongs to no count, as before.
+    .where(and(active(owner), scope ? scopeCondition(scope) : undefined, or(sql`${handoffs.projectId} IS NOT NULL`, eq(handoffs.project, ""))))
+    .groupBy(handoffs.projectId);
+  return { projects: Object.fromEntries(rows.map(row => [row.id ?? "none", row.n])) };
 }
 async function activeRow(owner: string, id: string, missing = "This handoff no longer exists or has expired.") {
   const [row] = await getDb().select().from(handoffs).where(and(active(owner), eq(handoffs.id, id))).limit(1);
@@ -121,7 +195,8 @@ async function activeRow(owner: string, id: string, missing = "This handoff no l
 async function threadOf(owner: string, row: HandoffRow): Promise<HandoffThread | null> {
   const rootId = row.threadId ?? row.id;
   const items = await getDb().select({ id: handoffs.id, title: handoffs.title, status: handoffs.status, sourceDevice: handoffs.sourceDevice,
-    targetDevice: handoffs.targetDevice, replyToId: handoffs.replyToId, createdAt: handoffs.createdAt, hasResult: sql<number>`${handoffs.result} IS NOT NULL` })
+    targetDevice: handoffs.targetDevice, replyToId: handoffs.replyToId, createdAt: handoffs.createdAt, hasResult: sql<number>`${handoffs.result} IS NOT NULL`,
+    sourceDeviceId: handoffs.sourceDeviceId, targetDeviceId: handoffs.targetDeviceId })
     .from(handoffs).where(and(active(owner), or(eq(handoffs.id, rootId), eq(handoffs.threadId, rootId))))
     .orderBy(asc(handoffs.createdAt), asc(handoffs.id)).limit(HANDOFF_LIMITS.threadSize);
   if (items.length <= 1 && !row.threadId) return null;

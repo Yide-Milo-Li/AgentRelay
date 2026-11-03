@@ -7,6 +7,7 @@ import { projectRoot } from "../../tooling/environment/project-root.mjs";
 import { systemStore, credentialRefs } from "../../tooling/agents/credential-store.mjs";
 import { flat } from "../support/image-fixtures.mjs";
 import yaml from "js-yaml";
+import { identityHeaders } from "../support/test-identity.mjs";
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5190";
 if (!["localhost", "127.0.0.1"].includes(new URL(base).hostname)) throw new Error("Client checks require a local Worker.");
 const clientRoot = path.resolve(process.env.AGENTRELAY_CLIENT_ROOT ?? projectRoot), run = crypto.randomUUID(), owner = `client-${run}`;
@@ -14,7 +15,7 @@ const parent = path.join(projectRoot, "outputs/client-verification"); mkdirSync(
 const fixture = mkdtempSync(path.join(parent, "run-")), userHome = path.join(fixture, "user"), output = [], issued = [];
 mkdirSync(userHome);
 const childEnv = { ...process.env, USERPROFILE: userHome, HOME: userHome, DSH_HOME: "" }, endpoint = `${base}/api/agent/mcp`;
-const vault = await systemStore(), ownHeaders = { "oai-authenticated-user-id": owner, "Content-Type": "application/json", Connection: "close" };
+const vault = await systemStore(), ownHeaders = { ...identityHeaders(owner), "Content-Type": "application/json", Connection: "close" };
 const check = (name, value) => { assert.ok(value, name); output.push(name); };
 async function request(url, method = "GET", input, headers = ownHeaders) {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -71,6 +72,18 @@ try {
   const downloaded = JSON.parse(download.stdout);
   const imageFile = downloaded.files[0].path;
   check("installed upload/download preserve exact image bytes outside the checkout", readFileSync(imageFile).equals(Buffer.from(bytes)));
+  // The local Worker has no Sites gate in front of /api/agent, like a standalone Cloudflare deployment: the Agent Token is enough.
+  const { data: bare } = await request("/api/agent-tokens", "POST", { name: "Client without gateway", expiresInDays: 1 }); issued.push(bare);
+  const gatewayFree = client(path.join(clientRoot, "scripts/agents/agentrelay.mjs"), ["connect", "--profile", "codex", "--connection", bare.id, "--url", endpoint, "--transport", "bridge", "--stdin"], JSON.stringify({ agentToken: bare.token }));
+  check("a Site without the Sites gate connects with the Agent Token alone", gatewayFree.status === 0 && !gatewayFree.stdout.includes(bare.token) && !gatewayFree.stderr.includes(bare.token));
+  check("that connection saves no gateway reference", JSON.parse(readFileSync(path.join(userHome, ".agentrelay/connections.json"), "utf8")).connections[bare.id].gatewayRef === null);
+  const bareHeaders = client(launcher, ["headers", "--connection", bare.id]);
+  check("its header helper sends the Agent Token only", bareHeaders.status === 0 && Object.keys(JSON.parse(bareHeaders.stdout)).join() === "Authorization");
+  const bareWire = client(launcher, ["bridge", "--connection", bare.id], JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) + "\n");
+  check("its bridge lists all five tools", bareWire.status === 0 && JSON.parse(bareWire.stdout).result.tools.length === 5 && !bareWire.stderr);
+  check("it verifies", client(launcher, ["verify", "--connection", bare.id]).status === 0);
+  const refused = client(launcher, ["gateway", "--url", base, "--stdin"], "synthetic-unneeded-gateway");
+  check("saving a gateway token for such a Site is refused, without echoing it", refused.status === 1 && refused.stderr.includes("needs no gateway token") && !`${refused.stdout}${refused.stderr}`.includes("synthetic-unneeded-gateway"));
   await request(`/api/handoffs/${handoff.id}`, "DELETE");
   await request(`/api/agent-tokens/${issued[0].id}`, "DELETE");
   for (const data of issued.slice(1)) check("other installed connections remain usable", client(launcher, ["verify", "--connection", data.id]).status === 0);

@@ -6,12 +6,14 @@ import { projectRoot } from "../../tooling/environment/project-root.mjs";
 import { runTestNode, sanitizeRunLogs } from "../support/integration-process.mjs";
 import { flat } from "../support/image-fixtures.mjs";
 import { localTestEnvironment, startLocalPreview } from "../support/local-preview.mjs";
+import { identityHeaders, prepareTestSignIn } from "../support/test-identity.mjs";
 
 const directory = path.join(projectRoot, "outputs/verification", `preview-persistence-${randomUUID()}`);
 mkdirSync(directory, { recursive: true });
 const env = localTestEnvironment(directory);
 const owner = `persistence-qa-${randomUUID()}`;
-const identity = { "oai-authenticated-user-id": owner, Connection: "close" };
+const signIn = await prepareTestSignIn();
+const identity = { ...identityHeaders(owner, undefined, { ...process.env, ...signIn.env }), Connection: "close" };
 const content = "Synthetic persistence check\r\n中文 🚀\n";
 const image = await flat({ format: "png", width: 12, height: 9 });
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
@@ -27,7 +29,7 @@ try {
     env, label: "persistence-migrations", logFile: path.join(directory, "migrations.log"), timeoutMs: 240_000,
   });
   assert.equal(migration.code, 0, "the disposable local database must migrate");
-  preview = await startLocalPreview(env, { label: "before-restart" });
+  preview = await startLocalPreview(env, { label: "before-restart", vars: signIn.vars });
   const upload = await request(`${preview.url}/api/attachments`, {
     method: "POST", headers: { ...identity, "X-Upload-Key": randomUUID(), "X-Filename": "synthetic.png", "Content-Type": "image/png" }, body: image,
   });
@@ -44,7 +46,7 @@ try {
   preview = undefined;
 
   // A new preview process must reopen the same local D1 and R2 state, not a fresh store.
-  preview = await startLocalPreview(env, { label: "after-restart" });
+  preview = await startLocalPreview(env, { label: "after-restart", vars: signIn.vars });
   const read = await request(`${preview.url}/api/handoffs/${handoff.id}`, { headers: identity });
   assert.equal(read.status, 200);
   const stored = await read.json();
@@ -59,6 +61,7 @@ try {
   console.log(JSON.stringify(report));
 } finally {
   if (preview) { preview.stop(); await preview.done; }
+  await signIn.close();
   sanitizeRunLogs(directory);
   writeFileSync(path.join(directory, "results.json"), JSON.stringify(report, null, 2));
   console.log(`Preview persistence evidence: ${directory}`);

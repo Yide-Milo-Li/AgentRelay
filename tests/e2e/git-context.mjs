@@ -4,11 +4,12 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { identityHeaders } from "../support/test-identity.mjs";
 
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5178";
 if (!["127.0.0.1", "localhost"].includes(new URL(base).hostname)) throw new Error("Git context browser checks require a local Worker.");
 const run = crypto.randomUUID(), owner = `git-context-browser-${run}`, session = `git-context-${run.slice(0, 8)}`;
-const output = path.resolve(`outputs/git-context-e2e/${run}`), headers = { "oai-authenticated-user-id": owner, "oai-authenticated-user-email": "git-context@sites.test" };
+const output = path.resolve(`outputs/git-context-e2e/${run}`), headers = identityHeaders(owner, "git-context@sites.test");
 const binary = process.env.AGENT_BROWSER_BIN ?? (process.platform === "win32" ? path.join(process.env.APPDATA, "npm/node_modules/agent-browser/bin/agent-browser-win32-x64.exe") : "agent-browser");
 const checks = [], ids = [];
 await mkdir(output, { recursive: true });

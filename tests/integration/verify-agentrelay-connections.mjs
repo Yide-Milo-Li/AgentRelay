@@ -1,9 +1,10 @@
 // Built Worker HTTP checks; every credential is synthetic and revoked in finally. Never print tokens.
 import assert from "node:assert/strict";
+import { identityHeaders } from "../support/test-identity.mjs";
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5190";
 if (!["localhost", "127.0.0.1"].includes(new URL(base).hostname)) throw new Error("Connection tests require a local Worker.");
 const owner = `connections-${crypto.randomUUID()}`, stranger = `other-${owner}`, checks = [], ids = [];
-async function request(path, method = "GET", data, headers = { "oai-authenticated-user-id": owner }) {
+async function request(path, method = "GET", data, headers = { ...identityHeaders(owner) }) {
   const response = await fetch(base + path, { method, redirect: "manual", signal: AbortSignal.timeout(30_000),
     headers: { "Content-Type": "application/json", Connection: "close", ...headers }, body: data === undefined ? undefined : JSON.stringify(data) });
   const text = await response.text();
@@ -24,13 +25,13 @@ try {
   const listing = (await request("/api/agent-tokens")).data.tokens;
   check("authentication timestamp recorded", listing.find(t => t.id === permanent.id).lastAuthenticatedAt > 0);
   check("the issuer sees their own rows flagged and a stranger sees none", listing.every(t => t.issuedByViewer === true)
-    && (await request("/api/agent-tokens", "GET", undefined, { "oai-authenticated-user-id": stranger })).data.tokens.length === 0);
+    && (await request("/api/agent-tokens", "GET", undefined, { ...identityHeaders(stranger) })).data.tokens.length === 0);
   check("active permanent cannot be removed", (await request(`/api/agent-tokens/${permanent.id}?permanent=1`, "DELETE")).status === 409);
   check("inactive cleanup retains active permanent", (await request("/api/agent-tokens?scope=inactive", "DELETE")).data.removed === 0);
   const path = "/api/agent-tokens/revoke-issuer", body = { connectionId: permanent.id, expectedTokenIds: [permanent.id, finite.id] };
   check("Agent Token cannot manage issuer access", (await request(path, "POST", undefined, bearer(permanent.token))).status === 401);
-  check("foreign issuer reference answers not found", (await request(path, "POST", body, { "oai-authenticated-user-id": stranger })).status === 404);
-  check("cross-origin issuer revocation rejected", (await request(path, "POST", undefined, { "oai-authenticated-user-id": owner, Origin: "https://untrusted.example" })).status === 403);
+  check("foreign issuer reference answers not found", (await request(path, "POST", body, { ...identityHeaders(stranger) })).status === 404);
+  check("cross-origin issuer revocation rejected", (await request(path, "POST", undefined, { ...identityHeaders(owner), Origin: "https://untrusted.example" })).status === 403);
   const extra = (await issue({ name: "New after preview" })).data;
   check("stale issuer preview refuses whole mutation", (await request(path, "POST", body)).status === 409 && (await request("/api/agent/connection", "GET", undefined, bearer(permanent.token))).status === 200);
   check("current preview revokes all including permanent", (await request(path, "POST", { ...body, expectedTokenIds: [...body.expectedTokenIds, extra.id] })).data.revoked.length === 3);
@@ -59,7 +60,7 @@ try {
     && !secondPage.data.events.some(e => firstPage.data.events.some(f => f.id === e.id)));
   check("history can be limited to one connection", (await request(`/api/agent-tokens/events?tokenId=${reader.id}`)).data.events.every(e => e.tokenId === reader.id));
   check("history rejects bad queries", (await request("/api/agent-tokens/events?limit=0")).status === 400 && (await request("/api/agent-tokens/events?before=zzz")).status === 400);
-  check("another workspace sees no history", (await request("/api/agent-tokens/events", "GET", undefined, { "oai-authenticated-user-id": stranger })).data.events.length === 0);
+  check("another workspace sees no history", (await request("/api/agent-tokens/events", "GET", undefined, { ...identityHeaders(stranger) })).data.events.length === 0);
   check("an Agent Token cannot read the history", (await request("/api/agent-tokens/events", "GET", undefined, bearer(third.token))).status === 401);
   const bench = (await request("/api/devices", "POST", { name: "Bench", id: "bench" })).data, onBench = (await issue({ name: "On bench", deviceId: bench.id })).data;
   const deleted = await request(`/api/devices/${bench.id}`, "DELETE", { version: bench.version, connections: "revoke" });
@@ -82,8 +83,8 @@ try {
   const spin = (await issue({ name: "Spin" })).data, spinUrl = `/api/agent-tokens/${spin.id}/rotate`;
   check("the connection authenticates before rotation", (await request("/api/agent/connection", "GET", undefined, bearer(spin.token))).status === 200);
   check("an Agent Token cannot rotate", (await request(spinUrl, "POST", {}, bearer(spin.token))).status === 401);
-  check("cross-origin rotation is rejected", (await request(spinUrl, "POST", {}, { "oai-authenticated-user-id": owner, Origin: "https://untrusted.example" })).status === 403);
-  check("a foreign workspace cannot rotate and learns nothing", (await request(spinUrl, "POST", {}, { "oai-authenticated-user-id": stranger })).status === 404);
+  check("cross-origin rotation is rejected", (await request(spinUrl, "POST", {}, { ...identityHeaders(owner), Origin: "https://untrusted.example" })).status === 403);
+  check("a foreign workspace cannot rotate and learns nothing", (await request(spinUrl, "POST", {}, { ...identityHeaders(stranger) })).status === 404);
   check("rotating with a stale version is refused", (await request(spinUrl, "POST", { version: spin.version + 5 })).status === 409);
   const rotated = await request(spinUrl, "POST", { version: spin.version });
   check("rotating returns a new secret once and bumps the version", rotated.status === 200 && /^agentrelay_[a-f0-9]{64}$/.test(rotated.data.token) && rotated.data.token !== spin.token
@@ -96,10 +97,10 @@ try {
 
   const setA = (await issue({ name: "Set one" })).data, setB = (await issue({ name: "Set two" })).data, setPath = "/api/agent-tokens/revoke";
   check("an Agent Token cannot revoke a set", (await request(setPath, "POST", { ids: [setA.id] }, bearer(rotated.data.token))).status === 401);
-  check("cross-origin set revocation is rejected", (await request(setPath, "POST", { ids: [setA.id] }, { "oai-authenticated-user-id": owner, Origin: "https://untrusted.example" })).status === 403);
+  check("cross-origin set revocation is rejected", (await request(setPath, "POST", { ids: [setA.id] }, { ...identityHeaders(owner), Origin: "https://untrusted.example" })).status === 403);
   check("an empty, repeated or unknown reason is rejected", (await request(setPath, "POST", { ids: [] })).status === 400 && (await request(setPath, "POST", { ids: [setA.id, setA.id] })).status === 400
     && (await request(setPath, "POST", { ids: [setA.id], reason: "device_deleted" })).status === 400);
-  check("a foreign workspace or an unknown id refuses the whole set", (await request(setPath, "POST", { ids: [setA.id] }, { "oai-authenticated-user-id": stranger })).status === 409
+  check("a foreign workspace or an unknown id refuses the whole set", (await request(setPath, "POST", { ids: [setA.id] }, { ...identityHeaders(stranger) })).status === 409
     && (await request(setPath, "POST", { ids: [setA.id, setB.id, "no-such-id"] })).status === 409
     && (await request("/api/agent-tokens")).data.tokens.filter(t => [setA.id, setB.id].includes(t.id)).every(t => t.revokedAt === null));
   const set = await request(setPath, "POST", { ids: [setA.id, setB.id] });

@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { agentConnection, copyGateway, installSummary, saveGateway, verifySummary } from "../../tooling/agents/client.mjs";
-import { checkGateway, copyToClipboard, gatewayRef, siteOrigin } from "../../tooling/agents/gateway.mjs";
+import { checkGateway, copyToClipboard, gatewayRef, needsGateway, siteOrigin } from "../../tooling/agents/gateway.mjs";
 import { CLIENT_FILES, CLIENT_VERSION, copyClient, ensureClient, hasKeyring, installClient, rollbackClient } from "../../tooling/agents/client-install.mjs";
 import { isClientCopy, runEntry } from "../../tooling/agents/client-bootstrap.mjs";
 import { credentialRefs } from "../../tooling/agents/credential-store.mjs";
@@ -21,6 +21,8 @@ function fixture() {
 // What AgentRelay answers when the gateway let a request through without an Agent Token.
 const passed = async () => new Response(JSON.stringify({ error: "A valid personal Agent Token is required." }), { status: 401, headers: { "Content-Type": "application/json" } });
 const gated = async () => new Response("<html>Sign in</html>", { status: 403, headers: { "Content-Type": "text/html" } });
+// The Sites gate: only a request with the gateway header reaches AgentRelay.
+const sitesGate = async (url, init) => (init?.headers?.["OAI-Sites-Authorization"] ? passed() : gated());
 
 test("the gateway is keyed by Site origin, the same entry connect uses", () => {
   assert.equal(siteOrigin(`${site}/`), site);
@@ -35,14 +37,32 @@ test("gateway --stdin saves only a token the Site lets through, and never echoes
   try {
     await assert.rejects(saveGateway({ url: site }, `${gateway}\n`, { store: f.store, fetchImpl: gated }), /did not accept/);
     assert.equal(f.data.size, 0);
-    await assert.rejects(saveGateway({ url: site }, "two words", { store: f.store, fetchImpl: passed }), /one line/);
-    const saved = await saveGateway({ url: site }, `${gateway}\n`, { store: f.store, fetchImpl: passed });
+    await assert.rejects(saveGateway({ url: site }, "two words", { store: f.store, fetchImpl: sitesGate }), /one line/);
+    const saved = await saveGateway({ url: site }, `${gateway}\n`, { store: f.store, fetchImpl: sitesGate });
     assert.equal(f.data.get(gatewayRef(site).ref), gateway);
     assert.ok(!JSON.stringify(saved).includes(gateway));
     let persisted;
-    await saveGateway({ url: site, storage: "env" }, gateway, { fetchImpl: passed, env: {}, persist: (names, options) => { persisted = { names, value: options.env[names[0]] }; return { where: "profile", restart: "restart" }; } });
+    await saveGateway({ url: site, storage: "env" }, gateway, { fetchImpl: sitesGate, env: {}, persist: (names, options) => { persisted = { names, value: options.env[names[0]] }; return { where: "profile", restart: "restart" }; } });
     assert.deepEqual(persisted, { names: [gatewayRef(site).variable], value: gateway });
   } finally { f.close(); }
+});
+
+test("a deployment without the Sites gate is told it needs no gateway token, and nothing is saved", async () => {
+  const f = fixture();
+  try {
+    await assert.rejects(saveGateway({ url: site }, gateway, { store: f.store, fetchImpl: passed }), /needs no gateway token: agents reach it with their Agent Token alone\. Nothing was saved\./);
+    assert.equal(f.data.size, 0);
+  } finally { f.close(); }
+});
+
+test("the gateway probe sends no credential and trusts only AgentRelay's own answer", async () => {
+  let headers;
+  assert.equal(await needsGateway(site, async (url, init) => { headers = init.headers; assert.equal(String(url), `${site}/api/agent/connection`); return passed(); }), false);
+  assert.deepEqual(headers, {});
+  assert.equal(await needsGateway(site, gated), true);
+  assert.equal(await needsGateway(site, async () => new Response(null, { status: 302, headers: { Location: "/signin-with-chatgpt" } })), true);
+  assert.equal(await needsGateway(site, async () => new Response(JSON.stringify({ error: "Sign in first." }), { status: 401 })), true);
+  await assert.rejects(needsGateway(site, async () => { throw new TypeError("offline"); }), /Could not reach/);
 });
 
 test("the gateway check sends only the gateway header and counts only AgentRelay's own answer", async () => {

@@ -4,7 +4,7 @@ import { json, failure } from "@/server/http";
 export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
-    const owner = ownerFrom(request);
+    const owner = await ownerFrom(request);
     // Delete what is due before measuring, so Storage never counts handoffs that are about to go.
     await purgeExpiredQuietly(owner);
     return json(await getStorageSummary(owner));

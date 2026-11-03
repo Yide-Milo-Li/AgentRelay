@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   try {
     sameOrigin(request);
-    const actor = actorFrom(request), input = await body(request);
+    const actor = await actorFrom(request), input = await body(request);
     if (Object.keys(input).some(key => !["browserId", "handoffId"].includes(key))
       || (input.handoffId !== undefined && (typeof input.handoffId !== "string" || input.handoffId.length > 128))) throw new AgentRelayError("Invalid notification test.");
     const settings = await getNotificationSettings(actor.owner, input.browserId);

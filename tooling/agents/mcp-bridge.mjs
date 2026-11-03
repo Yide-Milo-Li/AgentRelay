@@ -1,5 +1,6 @@
 // A local stdio MCP bridge for agents that cannot reach `/api/agent/mcp` directly: they only run local servers, or
-// cannot send the two custom headers. It forwards each JSON-RPC message to the Site and adds both credentials.
+// cannot send the custom headers. It forwards each JSON-RPC message to the Site and adds the Agent Token, plus the
+// Sites gateway token when the Site has one.
 // The Site stays the only MCP implementation; this file never interprets a tool call, and it never logs a credential.
 
 const REQUEST_TIMEOUT_MS = 120_000;
@@ -38,7 +39,7 @@ function refusal(status) {
  * @param {object} options
  * @param {string} options.endpoint The Site's `/api/agent/mcp` URL.
  * @param {string} options.agentToken
- * @param {string} options.gatewayToken
+ * @param {string | null} [options.gatewayToken] The Sites gateway token; null for a deployment without that gate.
  * @param {(message: object) => void} options.write Receives every message for the client, already parsed.
  * @param {typeof fetch} [options.fetchImpl]
  * @param {boolean} [options.coreSchemas] Reduce `tools/list` input schemas to the core subset, for clients that enforce it.
@@ -57,7 +58,7 @@ export function createBridge({ endpoint, agentToken, gatewayToken, write, fetchI
         method: "POST",
         headers: {
           "Content-Type": "application/json", Accept: "application/json, text/event-stream",
-          Authorization: `Bearer ${agentToken}`, "OAI-Sites-Authorization": `Bearer ${gatewayToken}`,
+          Authorization: `Bearer ${agentToken}`, ...(gatewayToken ? { "OAI-Sites-Authorization": `Bearer ${gatewayToken}` } : {}),
         },
         body: JSON.stringify(message),
         redirect: "error",

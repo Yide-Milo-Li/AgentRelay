@@ -5,7 +5,11 @@ import { useLang } from "@/components/providers/LanguageProvider";
 import InfoTip from "@/components/ui/InfoTip";
 import { formatTime } from "@/shared/formatting/date";
 import type { StorageSummary } from "@/shared/contracts/storage";
+import { DEPLOYMENT_TARGET } from "@/shared/contracts/deployment-target";
 import { formatShare, formatStorageBytes, storageComposition, storageUsage, type StorageKind } from "../storage-formatting";
+
+// On a standalone Cloudflare deployment R2 is billed above a free allowance, and the D1 limit depends on the plan.
+const CLOUDFLARE = DEPLOYMENT_TARGET === "cloudflare";
 
 type Props = { summary: StorageSummary | null; summaryError: unknown };
 
@@ -29,7 +33,7 @@ export default function StorageOverview({ summary, summaryError }: Props) {
   return <section className="storage-overview" aria-labelledby="storage-usage-title" data-tone={tone}>
     <div className="storage-usage-head"><h2 id="storage-usage-title" className="storage-total-label">{s.usage}</h2>
       {/* How the 10 GB is counted: needed once, so it waits behind the button instead of under the meters. */}
-      <InfoTip label={t.infoAbout(s.usage)}><p>{s.measurementNote}</p></InfoTip></div>
+      <InfoTip label={t.infoAbout(s.usage)}><p>{CLOUDFLARE ? s.measurementNoteAccess : s.measurementNote}</p></InfoTip></div>
     <p className="storage-total tnum">{composition ? bytes(composition.total) : s.measuring}</p>
     {/* Each segment grows in proportion to its bytes but never below the CSS minimum width, so a type that is a tiny
         fraction of the total stays visible; flexbox hands the width it borrows back out proportionally from the others. */}
@@ -56,7 +60,7 @@ export default function StorageOverview({ summary, summaryError }: Props) {
     <div className="storage-quota">
       <span>{s.objectQuota}</span>
       <span className="tnum">{composition ? bytes(composition.objectBytes) : "—"}</span>
-      <span className="storage-quota-percent">{s.noFixedLimit}</span>
+      <span className="storage-quota-percent">{CLOUDFLARE ? s.r2Allowance : s.noFixedLimit}</span>
     </div>
     <div className="storage-measurement"><span>{summary ? s.measured(formatTime(summary.measuredAt, locale)) : s.measuring}</span>
       {tone !== "normal" && <span className="storage-warning"><TriangleAlert size={14} aria-hidden="true" />{tone === "danger" ? s.critical : s.warning}</span>}</div>

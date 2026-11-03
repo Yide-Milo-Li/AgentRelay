@@ -6,6 +6,6 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   try {
     const { id, attachmentId } = await context.params;
     // Normal reads honour the handoff's expiry; Storage management has its own route.
-    return attachmentResponse(request, ownerFrom(request), id, attachmentId, false);
+    return attachmentResponse(request, await ownerFrom(request), id, attachmentId, false);
   } catch (error) { return failure(error); }
 }

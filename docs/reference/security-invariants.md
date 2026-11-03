@@ -5,7 +5,7 @@ Every change to AgentRelay must keep these rules. Contributors and coding agents
 All contributors and AI Agents modifying this codebase **must strictly uphold the following invariants**:
 
 1. **Absolute Workspace (Owner) Isolation**
-   - Web requests and native `/mcp` routes derive `ownerId` from the platform authentication header `oai-authenticated-user-id`. External `/api/agent/mcp` routes resolve `ownerId` from the SHA-256 hash of a valid personal Agent Token. Client-supplied identity overrides are never permitted.
+   - Web requests and native `/mcp` routes derive `ownerId` from the platform's sign-in: the header `oai-authenticated-user-id` on the `sites` build, or a Cloudflare Access JWT (`Cf-Access-Jwt-Assertion`) verified against the configured team and AUD tags on the `cloudflare` build. Each build reads exactly one source; a `cloudflare` build contains no code that reads the Sites headers, and its build guard fails otherwise. External `/api/agent/mcp` routes resolve `ownerId` from the SHA-256 hash of a valid personal Agent Token. Client-supplied identity overrides are never permitted.
    - When the server-side `AGENTRELAY_WORKSPACE_OWNER_ID` variable is set, every platform-authenticated user resolves to that one `ownerId` (the shared workspace). The mapping happens only in `src/server/auth/`; services keep filtering by the `ownerId` they are given.
    - All queries and state mutations scope strictly by `ownerId`. Active records must satisfy:  
      `active(owner) = and(eq(handoffs.ownerId, owner), or(isNull(handoffs.expiresAt), gt(handoffs.expiresAt, Date.now())))`.
