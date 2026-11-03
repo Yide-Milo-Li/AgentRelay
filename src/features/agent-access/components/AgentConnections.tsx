@@ -9,6 +9,7 @@ import type { Device } from "@/shared/contracts/devices";
 import type { TokenInfo } from "@/shared/contracts/agent-tokens";
 import { AGENT_PROFILES } from "@/shared/agent-profiles";
 import { copyText } from "@/shared/browser/clipboard";
+import { DEPLOYMENT_TARGET } from "@/shared/contracts/deployment-target";
 import { isRetired } from "@/shared/formatting/connection-health";
 import ActivityDrawer from "@/features/agent-access/components/ActivityDrawer";
 import ConnectionList from "@/features/agent-access/components/ConnectionList";
@@ -117,7 +118,7 @@ export default function AgentConnections({ siteUrl, notify, devices, currentDevi
       <h2 id="token-heading"><KeyRound size={18} aria-hidden="true" />{t.tokensTitle}</h2>
       {/* How the credentials behave: worth knowing once, not worth rereading on every visit. */}
       <InfoTip label={t.infoAbout(t.tokensTitle)}>
-        <p>{t.tokensFlow}</p><p>{t.tokensLabelNote}</p>{shared && <p>{t.issuerBody}</p>}<p>{t.tokensGateway}</p>
+        <p>{t.tokensFlow}</p><p>{t.tokensLabelNote}</p>{shared && <p>{t.issuerBody}</p>}<p>{DEPLOYMENT_TARGET === "cloudflare" ? t.tokensNoGateway : t.tokensGateway}</p>
       </InfoTip>
       <div className="token-tools">
         <button type="button" className="btn quiet" disabled={busy} onClick={() => void change(reload)}><RefreshCw size={15} aria-hidden="true" />{t.refresh}</button>

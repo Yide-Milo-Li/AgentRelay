@@ -6,6 +6,20 @@ import { around } from "./zh-spacing";
 export const zh: Dict = {
   brandTagline: "跨设备提示词中转站",
   home: "AgentRelay 首页",
+  signInRequired: {
+    "signed-out": {
+      title: "需要登录",
+      body: "Cloudflare Access 没有为这次请求登录任何人。请确认此地址已受 Access 应用保护，然后刷新页面。",
+    },
+    unconfigured: {
+      title: "缺少 Access 设置",
+      body: "此部署的 Cloudflare Access 设置缺失或无效。请设置 AGENTRELAY_ACCESS_TEAM_DOMAIN 和 AGENTRELAY_ACCESS_AUD 后重新部署。",
+    },
+    "keys-unavailable": {
+      title: "暂时无法登录",
+      body: "暂时无法获取 Cloudflare Access 密钥，请稍后刷新页面。",
+    },
+  },
   mainNav: "主导航",
   navInbox: "交接箱",
   navDone: "已完成",
@@ -134,6 +148,7 @@ export const zh: Dict = {
   status: { ready: "待接收", claimed: "已接收", done: "已完成" },
   count: (n: number) => `${n} 个交接`,
   loadingList: "正在读取交接箱…",
+  loadingHandoff: "正在读取这条交接…", showMore: "显示更多", loadingMore: "正在加载更多…",
   noMatch: "没有符合条件的交接。",
   deviceNoMatch: "无匹配设备",
   emptyList: "交接会出现在这里。",
@@ -334,6 +349,7 @@ export const zh: Dict = {
   mcpConfigTitle: (device: string) => `MCP 配置 · ${device}`,
   mcpConfigHint: "凭据由环境变量提供",
   tokensGateway: "ChatGPT 之外的 Agent 还需要站点的网关令牌，每台设备保存一次。它只让请求通过 Sites 登录网关，没有 Agent Token 时不授予任何权限。请勿把任一凭据写入交接内容或 Git。",
+  tokensNoGateway: "Agent 只需 Agent Token 即可连接：Cloudflare Access 放行 AgentRelay 的 Agent 路径，由 AgentRelay 校验每个 Token。请勿把 Token 写进交接或 Git。",
 
   devicesTitle: "我的设备",
   devicesBody: "登记你用来交接工作的设备。重命名后设备 ID 和颜色保持不变，路线与 agent 的配置不会失效。",
@@ -382,9 +398,10 @@ export const zh: Dict = {
     title: "存储管理", subtitle: "属于你个人的 AgentRelay 实例。查看保存的数据，自主决定保留哪些交接。",
     usage: "已存数据", composition: "按类型划分的已存数据", unavailable: "暂不可用", capacity: (used: string, limit: string) => `${used} / ${limit}`,
     kinds: { text: "提示词文本", database: "其他数据库数据", images: "图片", pending: "待清理的上传" },
-    limits: "容量上限", databaseQuota: "数据库（D1）", objectQuota: "图片存储（R2）", noFixedLimit: "无固定上限",
+    limits: "容量上限", databaseQuota: "数据库（D1）", objectQuota: "图片存储（R2）", noFixedLimit: "无固定上限", r2Allowance: "10 GB-month 免费，超出计费",
     measured: (time: string) => `统计于 ${time}`, measuring: "正在统计…", stale: "刷新失败，当前显示上次统计结果。",
     warning: "数据库使用率已超过 80%。", critical: "数据库使用率已超过 95%，请检查不再需要的交接。",
+    measurementNoteAccess: "数据库上限取决于你的 Workers 套餐：Free 为 500 MB，Paid 为 10 GB。图片存储在 R2 中，没有固定上限：10 GB-month 免费，超出部分计费，因此只有数据库数据计入数据库上限。其他数据库数据是数据库文件的其余部分：索引、账户信息和可复用空间，因此删除文本后它可能不会立即缩小。占比很小的类型在条形图上保留最小宽度，准确大小以列表为准。",
     measurementNote: "每个站点有 10 GB 数据库和无固定上限的图片存储，只有数据库数据计入 10 GB。其他数据库数据是数据库文件的其余部分：索引、账户信息和可复用空间，因此删除文本后它可能不会立即缩小。占比很小的类型在条形图上保留最小宽度，准确大小以列表为准。",
     promptBreakdown: "按状态统计已存数据（文本 + 图片）", expired: "已过期", unexpired: "未过期",
     manage: "管理交接数据", manageNote: "已过期的交接会被自动删除，不会自动勾选任何记录。",
@@ -475,6 +492,7 @@ export const zh: Dict = {
   legacyDeviceOther: "选择其他设备",
   withoutConnectTitle: "不通过 connect 设置的 Agent",
   withoutConnectBody: "使用插件或手动配置的 Agent 按这条规则操作。把它粘贴到项目的 AGENTS.md 或 Agent 的用户级指令中。用 connect 命令设置的 Agent 已经有了。",
+  withoutConnectBodyAccess: "以 Google 登录的原生客户端和手动配置的 Agent 按这条规则操作。把它粘贴到项目的 AGENTS.md 或 Agent 的用户级指令中。用 connect 命令设置的 Agent 已经有这条规则。",
   setup: {
     title: "设置 AgentRelay",
     sub: "共四步。第 1、2 步在每台设备上各做一次。",
@@ -490,6 +508,8 @@ export const zh: Dict = {
     agent: {
       title: "在这里连接 Agent", action: "连接 Agent",
       body: (device: string) => `为${around(device)}上的 Agent 创建连接，并运行页面给出的命令。改用 ChatGPT 或 Codex 插件？在同一处选择即可。`,
+      bodyAccess: (device: string) => `为${around(device)}上的 Agent 创建连接，并运行页面给出的命令。改用以 Google 登录的 Claude Code、Codex 或 ChatGPT？在同一处选择即可。`,
+      native: (device: string) => `你确认${around(device)}使用原生客户端。`,
       done: (device: string) => `${around(device, { before: false })}上的 Agent 已连接。`, plugin: (device: string) => `你确认${around(device)}使用插件。`,
     },
     nextDevice: {

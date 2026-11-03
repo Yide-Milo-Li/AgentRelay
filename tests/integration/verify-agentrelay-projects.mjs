@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { executeLocalSql } from "../support/local-storage-fixtures.mjs";
 import { testRequest } from "../support/integration-http.mjs";
+import { identityHeaders } from "../support/test-identity.mjs";
 
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5178";
 if (!["127.0.0.1", "localhost"].includes(new URL(base).hostname)) throw new Error("Project checks require a local database.");
@@ -11,7 +12,7 @@ const check = (name, condition) => { assert.ok(condition, name); passed.push(nam
 const quote = value => `'${String(value).replaceAll("'", "''")}'`;
 const sql = executeLocalSql;
 async function request(route, method = "GET", data, user = owner, extra = {}) {
-  return testRequest(base + route, { method, headers: { ...(user ? { "oai-authenticated-user-id": user } : {}), "Content-Type": "application/json", ...extra },
+  return testRequest(base + route, { method, headers: { ...(user ? { ...identityHeaders(user) } : {}), "Content-Type": "application/json", ...extra },
     body: data === undefined ? undefined : JSON.stringify(data) });
 }
 const send = (project, extra = {}, user = owner) => request("/api/handoffs", "POST",

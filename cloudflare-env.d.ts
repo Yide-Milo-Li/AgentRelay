@@ -9,5 +9,11 @@ declare namespace Cloudflare {
     AGENTRELAY_VAPID_PUBLIC_KEY?: string;
     AGENTRELAY_VAPID_PRIVATE_KEY?: string;
     AGENTRELAY_VAPID_SUBJECT?: string;
+    /** Standalone deployments only: the Access team domain, `https://<team>.cloudflareaccess.com`. */
+    AGENTRELAY_ACCESS_TEAM_DOMAIN?: string;
+    /** Standalone deployments only: comma-separated AUD tags of the Access applications in front of this Worker. */
+    AGENTRELAY_ACCESS_AUD?: string;
+    /** Optional override of where Access signing keys are fetched; HTTPS, or HTTP on loopback for tests. */
+    AGENTRELAY_ACCESS_CERTS_URL?: string;
   }
 }

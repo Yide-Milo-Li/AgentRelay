@@ -37,11 +37,31 @@ export function resolveSite({ url, env = process.env } = {}) {
 /** The stdio bridge script on this device, for profiles whose agent starts it. */
 export const BRIDGE_SCRIPT = path.join(projectRoot, "scripts", "agents", "mcp-bridge.mjs");
 
-export const renderProfileConfig = (profile, siteUrl) => fillValues(profile.config.template, { siteUrl, bridgePath: BRIDGE_SCRIPT });
+export const renderProfileConfig = (profile, siteUrl, { gateway = true } = {}) => {
+  const config = fillValues(profile.config.template, { siteUrl, bridgePath: BRIDGE_SCRIPT });
+  return gateway ? config : withoutGateway(config);
+};
+
+const GATEWAY_REFERENCE = /OAI-Sites-Authorization|AGENTRELAY_SITES_GATEWAY_/;
+/**
+ * A profile's config for a deployment without the Sites gate: every header and variable that carries the gateway token
+ * is left out. Text configs (TOML, YAML) lose the lines that name it; JSON configs lose the keys.
+ */
+export function withoutGateway(config) {
+  if (typeof config === "string") return config.split("\n").filter(line => !GATEWAY_REFERENCE.test(line)).join("\n");
+  if (Array.isArray(config)) return config.map(withoutGateway);
+  if (!config || typeof config !== "object") return config;
+  return Object.fromEntries(Object.entries(config).filter(([key, value]) => !GATEWAY_REFERENCE.test(key) && !(typeof value === "string" && GATEWAY_REFERENCE.test(value)))
+    .map(([key, value]) => [key, withoutGateway(value)]));
+}
+
+/** The variable holding the Sites gateway token. A deployment without that gate needs none; connect checks which. */
+export const GATEWAY_SECRET = "AGENTRELAY_SITES_GATEWAY_TOKEN";
 
 /** Fail before touching the agent when a secret is missing or the Agent Token is a retired credential. */
 export function requireSecrets(profile, env = process.env) {
   for (const name of profile.secrets) {
+    if (name === GATEWAY_SECRET) continue;
     if (!env[name]?.trim()) throw new Error(`Set ${name} in this terminal before configuring ${profile.label}. It is read from the environment and never written to a file.`);
   }
   if (!TOKEN_PATTERN.test(env.AGENTRELAY_AGENT_TOKEN ?? "")) {
@@ -61,7 +81,7 @@ export function registerWithCli(profile, config, { endpoint } = {}) {
   return result.status ?? 1;
 }
 
-/** Call tools/list with both credentials, the same request any agent makes first. */
+/** Call tools/list with the credentials, the same request any agent makes first. */
 export async function verifyConnection({ endpoint, agentToken, gatewayToken, fetchImpl = fetch }) {
   let response;
   try {
@@ -69,7 +89,7 @@ export async function verifyConnection({ endpoint, agentToken, gatewayToken, fet
       method: "POST",
       headers: {
         "Content-Type": "application/json", Accept: "application/json, text/event-stream",
-        Authorization: `Bearer ${agentToken}`, "OAI-Sites-Authorization": `Bearer ${gatewayToken}`,
+        Authorization: `Bearer ${agentToken}`, ...(gatewayToken ? { "OAI-Sites-Authorization": `Bearer ${gatewayToken}` } : {}),
       },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
       signal: AbortSignal.timeout(15_000), redirect: "error",
@@ -83,7 +103,7 @@ export async function verifyConnection({ endpoint, agentToken, gatewayToken, fet
   const expected = ["create_handoff", "list_handoffs", "get_handoff", "claim_handoff", "complete_handoff"];
   if (response.ok && Array.isArray(tools) && expected.every(name => tools.includes(name)) && tools.length === expected.length) return { ok: true, tools };
   if (body?.result?.isError) return { ok: false, detail: `The site rejected the Agent Token (${body.result.content?.[0]?.text ?? response.status}).` };
-  if (!body) return { ok: false, detail: `The site answered ${response.status} without MCP data. Check the Sites gateway token and that the endpoint belongs to the current Site.` };
+  if (!body) return { ok: false, detail: `The site answered ${response.status} without MCP data. Check that the endpoint belongs to the current Site and, on ChatGPT Sites, the gateway token.` };
   return { ok: false, detail: `Unexpected answer from the site (status ${response.status}).` };
 }
 
@@ -108,13 +128,25 @@ function upsertBlock(existing, beginMarker, endMarker, lines) {
   return existing.replace(/\s*$/, "") + eol + eol + block + eol;
 }
 
+/** Cut a marked block and the blank line upsertBlock put before it; everything else stays as it was. */
+function removeBlock(existing, beginMarker, endMarker) {
+  const begin = existing.indexOf(beginMarker), end = existing.indexOf(endMarker);
+  if (begin === -1 || end < begin) return existing;
+  const eol = existing.includes("\r\n") ? "\r\n" : "\n";
+  const head = existing.slice(0, begin).replace(/(\r?\n)+$/, ""), tail = existing.slice(end + endMarker.length).replace(/^\r?\n/, "");
+  if (!head) return tail.replace(/^(\r?\n)+/, "");
+  return tail.trim() ? head + eol + tail : head + eol;
+}
+
 export const upsertRuleBlock = (existing, rule) => upsertBlock(existing, RULE_BEGIN, RULE_END, rule.split("\n"));
+export const removeRuleBlock = existing => removeBlock(existing, RULE_BEGIN, RULE_END);
 
 export const CONFIG_BEGIN = "# agentrelay:mcp-config:begin";
 export const CONFIG_END = "# agentrelay:mcp-config:end";
 
 /** Insert or replace AgentRelay's managed block in a `#`-commented config file such as Codex's config.toml. */
 export const upsertConfigBlock = (existing, text) => upsertBlock(existing, CONFIG_BEGIN, CONFIG_END, text.split("\n"));
+export const removeConfigBlock = existing => removeBlock(existing, CONFIG_BEGIN, CONFIG_END);
 
 /** The text with AgentRelay's managed block cut out, to find an entry the user wrote by hand. */
 function withoutConfigBlock(existing) {
@@ -140,10 +172,14 @@ export function registerWithFile(profile, text, { file, home, files = { read: re
   return target;
 }
 
-/** The environment variables to save for a profile, with the two tokens filled into their templates. */
+/**
+ * The environment variables to save for a profile, with the tokens filled into their templates. Without a gateway
+ * token (a deployment without the Sites gate) the variables made from it are left out rather than saved empty.
+ */
 export function persistValues(profile, env = process.env) {
-  return Object.fromEntries(Object.entries(profile.persist).map(([name, template]) => [name,
-    template.replaceAll("{agentToken}", env.AGENTRELAY_AGENT_TOKEN ?? "").replaceAll("{gatewayToken}", env.AGENTRELAY_SITES_GATEWAY_TOKEN ?? "")]));
+  const gateway = env[GATEWAY_SECRET]?.trim();
+  return Object.fromEntries(Object.entries(profile.persist).filter(([, template]) => gateway || !template.includes("{gatewayToken}"))
+    .map(([name, template]) => [name, template.replaceAll("{agentToken}", env.AGENTRELAY_AGENT_TOKEN ?? "").replaceAll("{gatewayToken}", gateway ?? "")]));
 }
 
 export const ENV_BEGIN = "# agentrelay:env:begin";
@@ -166,6 +202,7 @@ export function upsertEnvBlock(existing, values, blockId = "") {
   const suffix = blockId ? `:${blockId}` : "";
   return upsertBlock(existing, ENV_BEGIN + suffix, ENV_END + suffix, Object.entries(values).map(([name, value]) => `export ${name}=${shellQuote(value)}`));
 }
+export const removeEnvBlock = (existing, blockId = "") => removeBlock(existing, ENV_BEGIN + (blockId ? `:${blockId}` : ""), ENV_END + (blockId ? `:${blockId}` : ""));
 
 /**
  * Save variables to the user's own environment so every later session of the agent sees them. These are plaintext
@@ -199,4 +236,32 @@ export function persistUserEnv(names, { label = "your agent", env = process.env,
     renameSync(temporary, profile);
   } finally { rmSync(temporary, { force: true }); }
   return { where: profile, restart: `Open a new terminal and restart ${label} so they take effect. Apps launched from the desktop do not read shell profiles.` };
+}
+
+/**
+ * Undo persistUserEnv: on Windows delete the named User variables; elsewhere cut the marked blocks `blockIds` from the
+ * login shell's profile. Values are never read or printed. A variable or block that is already gone is not an error.
+ * @returns {{ where: string, restart: string }}
+ */
+export function clearUserEnv(names, { blockIds = [], label = "your agents", env = process.env, platform = process.platform, home, run = spawnSync, files = { read: readFileSync, write: writeFileSync, mkdir: mkdirSync } } = {}) {
+  for (const name of names) if (!ENV_NAME.test(name)) throw new Error(`Refusing to clear "${name}": not a plain environment variable name.`);
+  if (platform === "win32") {
+    if (names.length) {
+      const script = names.map((name) => `[Environment]::SetEnvironmentVariable('${name}', $null, 'User')`).join("; ");
+      const result = run("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { env, stdio: "ignore", windowsHide: true });
+      if (result.error || result.status !== 0) throw new Error("Windows did not accept the user environment change. Delete the variables in System Properties > Environment Variables instead.");
+    }
+    return { where: "your Windows user environment variables", restart: `Quit and reopen your terminal app and ${label} so the removal takes effect.` };
+  }
+  const profile = shellProfileFor({ platform, shell: env.SHELL, home });
+  if (!profile) throw new Error(`Cannot edit the profile of ${path.basename(env.SHELL ?? "")} automatically. Remove the AgentRelay variables from your shell configuration yourself.`);
+  let existing;
+  try { existing = files.read(profile, "utf8"); } catch (error) { if (error.code === "ENOENT") return { where: profile, restart: "" }; throw error; }
+  const next = blockIds.reduce((text, blockId) => removeEnvBlock(text, blockId), existing);
+  if (next !== existing) {
+    const temporary = `${profile}.${crypto.randomUUID()}.tmp`;
+    try { files.write(temporary, next, { mode: 0o600 }); renameSync(temporary, profile); }
+    finally { rmSync(temporary, { force: true }); }
+  }
+  return { where: profile, restart: `Open a new terminal and restart ${label} so the removal takes effect.` };
 }

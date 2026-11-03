@@ -10,7 +10,7 @@ export type SetupStepId = "device" | "agent" | "nextDevice" | "handoff";
 /** `selfReported` marks a step done only because the person said so in this browser. */
 export type SetupStep = { id: SetupStepId; done: boolean; selfReported: boolean };
 
-type Row = Pick<Handoff, "status" | "sourceDevice" | "sourceDeviceId" | "claimedBy" | "claimedByDeviceId">;
+type Row = Pick<Handoff, "status" | "sourceDevice"> & { sourceDeviceId?: string | null; claimedBy?: string | null; claimedByDeviceId?: string | null };
 
 /** A handoff claimed (and maybe finished) on a device other than the one that sent it: two devices have worked together. */
 export function claimedElsewhere(row: Row) {

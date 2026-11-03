@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { identityHeaders } from "../support/test-identity.mjs";
 
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5190";
 if (!["127.0.0.1", "localhost"].includes(new URL(base).hostname)) throw new Error("Theme checks require a local Worker.");
 const run = crypto.randomUUID();
 const session = `agentrelay-theme-${run.slice(0, 8)}`;
-const headers = { "oai-authenticated-user-id": `theme-qa-${run}`, "oai-authenticated-user-email": "theme@sites.test" };
+const headers = identityHeaders(`theme-qa-${run}`, "theme@sites.test");
 const binary = process.env.AGENT_BROWSER_BIN ?? (process.platform === "win32"
   ? path.join(process.env.APPDATA, "npm/node_modules/agent-browser/bin/agent-browser-win32-x64.exe") : "agent-browser");
 const output = path.resolve(process.env.AGENTRELAY_QA_OUTPUT ?? `outputs/theme/${run}`);

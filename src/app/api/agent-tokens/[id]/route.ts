@@ -6,7 +6,7 @@ type Context = { params: Promise<{ id: string }> };
 export async function PATCH(request: Request, context: Context) {
   try {
     sameOrigin(request);
-    const actor = actorFrom(request);
+    const actor = await actorFrom(request);
     return json(await updateAgentToken(actor.owner, (await context.params).id, await body(request), actor));
   } catch (e) { return failure(e); }
 }
@@ -14,7 +14,7 @@ export async function PATCH(request: Request, context: Context) {
 export async function DELETE(request: Request, context: Context) {
   try {
     sameOrigin(request);
-    const actor = actorFrom(request), { id } = await context.params, params = new URL(request.url).searchParams;
+    const actor = await actorFrom(request), { id } = await context.params, params = new URL(request.url).searchParams;
     if (params.get("permanent") === "1") return json(await removeInactiveAgentToken(actor.owner, id, actor));
     const version = params.get("version");
     return json(await revokeAgentToken(actor.owner, id, actor, version === null ? undefined : parseVersion(/^\d{1,9}$/.test(version) ? Number(version) : NaN)));

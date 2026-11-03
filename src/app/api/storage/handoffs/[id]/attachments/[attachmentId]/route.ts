@@ -6,6 +6,6 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   try {
     const { id, attachmentId } = await context.params;
     // Storage management may inspect the images of expired handoffs before deciding to delete them.
-    return attachmentResponse(request, ownerFrom(request), id, attachmentId, true);
+    return attachmentResponse(request, await ownerFrom(request), id, attachmentId, true);
   } catch (error) { return failure(error); }
 }

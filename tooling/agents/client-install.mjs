@@ -15,7 +15,7 @@ export const CLIENT_FILES = ["scripts/agents/agentrelay.mjs", "tooling/agents/cl
   "src/shared/images/inspect-image.mjs", "tooling/agents/git-context.mjs", "tooling/agents/skill-install.mjs",
   "tooling/agents/active-connection.mjs", "tooling/agents/skill/agentrelay-placeholder/SKILL.md", "tooling/agents/skill/agentrelay/SKILL.md", "tooling/agents/skill/agentrelay/references/handoff-content.md",
   "tooling/agents/skill/agentrelay/references/handoff-receipt.md", "LICENSE"];
-export const CLIENT_VERSION = "0.6.2";
+export const CLIENT_VERSION = "0.8.1";
 // The installed client's only dependency. Its manifest pins the version so npm installs exactly this one.
 const KEYRING = { name: "@napi-rs/keyring", version: "2.1.2" };
 const keyringAddon = () => process.platform === "win32" ? `keyring-win32-${process.arch}-msvc` : process.platform === "darwin" ? `keyring-darwin-${process.arch}` : `keyring-linux-${process.arch}-gnu`;

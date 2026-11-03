@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { execTestFile } from "../support/integration-process.mjs";
 import { executeLocalSql } from "../support/local-storage-fixtures.mjs";
 import { testRequest } from "../support/integration-http.mjs";
+import { identityHeaders } from "../support/test-identity.mjs";
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5178";
 if (!["127.0.0.1", "localhost"].includes(new URL(base).hostname)) throw new Error("Agent checks require a local database.");
 const run = crypto.randomUUID(), owner = `agent-qa-${run}`, stranger = `agent-other-${run}`;
@@ -11,11 +12,20 @@ const check = (name, condition) => { assert.ok(condition, name); passed.push(nam
 async function request(path, method = "GET", data, headers = {}) {
   return testRequest(base + path, { method, headers: { "Content-Type": "application/json", Connection: "close", ...headers }, body: data === undefined ? undefined : JSON.stringify(data) });
 }
-const identity = user => ({ "oai-authenticated-user-id": user });
+const identity = user => ({ ...identityHeaders(user) });
 const bearer = token => ({ Authorization: `Bearer ${token}` });
 const manage = (method = "GET", data, user = owner, extra = {}, path = "") => request(`/api/agent-tokens${path}`, method, data, { ...identity(user), ...extra });
 const rpc = (name, args, headers, method = "tools/call") => request("/api/agent/mcp", "POST", { jsonrpc: "2.0", id: 1, method, ...(method === "tools/call" ? { params: { name, arguments: args } } : {}) }, headers);
-function result(response) { assert.equal(response.status, 200); assert.ok(!response.data.result.isError, response.data.result.content?.[0]?.text); return JSON.parse(response.data.result.content[0].text); }
+// Some clients (ChatGPT) read JSON text whose top level uses MCP's own result keys as a nested tool result, so no tool may.
+const MCP_RESULT_KEYS = ["content", "structuredContent", "isError", "_meta"];
+let resultsChecked = 0;
+function result(response) {
+  assert.equal(response.status, 200); assert.ok(!response.data.result.isError, response.data.result.content?.[0]?.text);
+  const parsed = JSON.parse(response.data.result.content[0].text);
+  assert.deepEqual(MCP_RESULT_KEYS.filter(key => key in parsed), [], "a tool result's JSON text uses an MCP result key at its top level");
+  resultsChecked++;
+  return parsed;
+}
 const sql = async command => JSON.stringify(await executeLocalSql(command));
 try {
   check("anonymous token creation rejected", (await request("/api/agent-tokens", "POST", { name: "x" })).status === 401);
@@ -61,7 +71,7 @@ try {
   const web = await request("/api/handoffs", "POST", input, identity(owner)); ids.push(web.data.id);
   const listed = result(await rpc("list_handoffs", { status: "ready", targetDevice: "笔记本" }, bearer(a.token)));
   check("desktop handoff visible to laptop personal token", listed.handoffs.length === 1 && listed.handoffs[0].id === web.data.id);
-  check("full original text preserved across transports", result(await rpc("get_handoff", { id: web.data.id }, bearer(a.token))).content === content);
+  check("full original text preserved across transports", result(await rpc("get_handoff", { id: web.data.id }, bearer(a.token))).prompt === content);
   check("other owner cannot read original", (await rpc("get_handoff", { id: web.data.id }, bearer(b.token))).data.result.structuredContent.error.status === 404);
   check("caller-supplied identity cannot override token owner", result(await rpc("list_handoffs", {}, { ...bearer(b.token), ...identity(owner) })).handoffs.length === 0);
   check("other owner cannot claim", (await rpc("claim_handoff", { id: web.data.id, device: "笔记本", version: 1 }, bearer(b.token))).data.result.structuredContent.error.status === 404);
@@ -175,6 +185,7 @@ try {
   const diesNow = (await manage()).data.tokens.find(token => token.id === dies.id);
   check("deleting a device can revoke its connections", revoked.status === 200 && revoked.data.revokedConnections === 1 && revoked.data.unboundConnections === 0 && diesNow.revokedAt !== null && diesNow.deviceId === null);
   check("a connection revoked with its device is rejected by the Agent endpoint", (await rpc(null, null, bearer(dies.token), "initialize")).status === 401);
+  check("no tool result's JSON text uses an MCP result key at its top level", resultsChecked > 0);
   console.log(JSON.stringify({ passed: passed.length, checks: passed }, null, 2));
 } finally {
   const owners = `'${owner}', '${stranger}', 'agent-capped-${run}'`;

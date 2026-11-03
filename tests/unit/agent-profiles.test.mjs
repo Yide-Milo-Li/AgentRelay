@@ -113,6 +113,24 @@ test("--print renders a YAML patch row that forwards the bridge variables by nam
   assert.ok(result.stdout.includes(path.join(projectRoot, "scripts", "agents", "mcp-bridge.mjs")));
 });
 
+test("--print --no-gateway leaves exactly the gateway header and variables out of each profile", () => {
+  const env = { AGENTRELAY_MCP_URL: "https://relay.example.com/api/agent/mcp" }, gatewayLine = /OAI-Sites-Authorization|SITES_GATEWAY/;
+  const print = (id, ...flags) => { const result = run(["--profile", id, "--print", ...flags], env); assert.equal(result.status, 0, result.stderr); return result.stdout; };
+  // Text configs (TOML, YAML) lose the lines that name the gateway and nothing else.
+  for (const id of ["codex", "deepseek-harness"]) {
+    const full = print(id), bare = print(id, "--no-gateway");
+    assert.ok(gatewayLine.test(full), id);
+    assert.equal(bare, full.split("\n").filter(line => !gatewayLine.test(line)).join("\n"), id);
+  }
+  // The JSON config keeps its Agent Token header and loses the gateway header.
+  const claude = JSON.parse(print("claude-code")), bareClaude = JSON.parse(print("claude-code", "--no-gateway"));
+  delete claude.mcpServers.agentrelay.headers["OAI-Sites-Authorization"];
+  assert.deepEqual(bareClaude, claude);
+  assert.deepEqual(Object.keys(bareClaude.mcpServers.agentrelay.headers), ["Authorization"]);
+  // A bridge profile's config never named the gateway, so it is unchanged.
+  assert.equal(print("antigravity", "--no-gateway"), print("antigravity"));
+});
+
 test("the endpoint must be https and end with /api/agent/mcp", () => {
   assert.match(run(["--print"], { AGENTRELAY_MCP_URL: "http://relay.example.com/api/agent/mcp" }).stderr, /HTTPS/);
   assert.match(run(["--print"], { AGENTRELAY_MCP_URL: "https://relay.example.com/mcp" }).stderr, /must end with \/api\/agent\/mcp/);

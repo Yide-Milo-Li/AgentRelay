@@ -1,6 +1,6 @@
 // Upload local images for a handoff and print the ordered attachment IDs for create_handoff.
 // Usage: node scripts/agents/upload-attachments.mjs [--url <https://site/api/agent/mcp>] [--retry-key <prefix>] <image> [<image> ...]
-// Environment: AGENTRELAY_MCP_URL (or --url), AGENTRELAY_AGENT_TOKEN, and AGENTRELAY_SITES_GATEWAY_TOKEN
+// Environment: AGENTRELAY_MCP_URL (or --url), AGENTRELAY_AGENT_TOKEN, and on ChatGPT Sites AGENTRELAY_SITES_GATEWAY_TOKEN
 // (Codex: AGENTRELAY_SITES_GATEWAY_HEADER). Stdout is one JSON object; diagnostics go to stderr and never contain a credential.
 import { resolveSite } from "../../tooling/agents/device-setup.mjs";
 import { UploadError, agentTokenFrom, gatewayAuthorization, uploadImages } from "../../tooling/agents/upload-attachments.mjs";

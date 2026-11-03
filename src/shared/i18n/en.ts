@@ -3,6 +3,20 @@ import { identityEn } from "./identity-en";
 export const en = {
   brandTagline: "Cross-device prompt handoff",
   home: "AgentRelay home",
+  signInRequired: {
+    "signed-out": {
+      title: "Sign-in required",
+      body: "Cloudflare Access didn't sign anyone in for this request. Check that an Access application protects this address, then reload.",
+    },
+    unconfigured: {
+      title: "Access settings missing",
+      body: "This deployment's Cloudflare Access settings are missing or invalid. Set AGENTRELAY_ACCESS_TEAM_DOMAIN and AGENTRELAY_ACCESS_AUD, then deploy again.",
+    },
+    "keys-unavailable": {
+      title: "Sign-in unavailable",
+      body: "Cloudflare Access keys can't be reached right now. Reload in a moment.",
+    },
+  },
   mainNav: "Main navigation",
   navInbox: "Inbox",
   navDone: "Done",
@@ -134,6 +148,7 @@ export const en = {
   status: { ready: "Ready", claimed: "Claimed", done: "Done" } as Record<string, string>,
   count: (n: number) => (n === 1 ? "1 handoff" : `${n} handoffs`),
   loadingList: "Reading your inbox…",
+  loadingHandoff: "Reading this handoff…", showMore: "Show more", loadingMore: "Loading more…",
   noMatch: "Nothing matches these filters.",
   deviceNoMatch: "No matching devices",
   emptyList: "Handoffs will appear here.",
@@ -334,6 +349,7 @@ Do not apply database migrations by hand: the deployment applies the pending one
   mcpConfigTitle: (device: string) => `MCP config · ${device}`,
   mcpConfigHint: "Credentials come from environment variables",
   tokensGateway: "Agents outside ChatGPT also need the Site's gateway token, saved once per device. It only gets requests past the Sites sign-in and grants nothing without an Agent Token. Never put either credential in a handoff or in Git.",
+  tokensNoGateway: "Agents connect with their Agent Token alone: Cloudflare Access lets AgentRelay's agent path through, and AgentRelay checks every token. Never put a token in a handoff or in Git.",
 
   devicesTitle: "Your devices",
   devicesBody: "Register the machines you hand work between. A device keeps its id and colour when you rename it, so routes and agents keep working.",
@@ -382,9 +398,10 @@ Do not apply database migrations by hand: the deployment applies the pending one
     title: "Storage", subtitle: "Your private AgentRelay instance. See what is stored and choose what to keep.",
     usage: "Stored data", composition: "Stored data by type", unavailable: "Unavailable", capacity: (used: string, limit: string) => `${used} of ${limit}`,
     kinds: { text: "Prompt text", database: "Other database data", images: "Images", pending: "Uploads awaiting cleanup" },
-    limits: "Limits", databaseQuota: "Database (D1)", objectQuota: "Image storage (R2)", noFixedLimit: "No fixed limit",
+    limits: "Limits", databaseQuota: "Database (D1)", objectQuota: "Image storage (R2)", noFixedLimit: "No fixed limit", r2Allowance: "10 GB-month free, billed above",
     measured: (time: string) => `Measured ${time}`, measuring: "Measuring…", stale: "Refresh failed. Showing the last measurement.",
     warning: "The database is over 80% full.", critical: "The database is over 95% full. Review unused handoffs.",
+    measurementNoteAccess: "The database limit is your Workers plan's: 500 MB on Free, 10 GB on Paid. Images are stored in R2, which has no fixed limit: 10 GB-month are free and more is billed, so only database data counts toward the database limit. Other database data is the rest of the database file: indexes, account metadata and reusable space, so deleting text may not shrink it right away. Very small types keep a minimum width on the bar; the list gives exact sizes.",
     measurementNote: "Each site gets a 10 GB database and image storage with no fixed limit, so only database data counts toward 10 GB. Other database data is the rest of the database file: indexes, account metadata and reusable space, so deleting text may not shrink it right away. Very small types keep a minimum width on the bar; the list gives exact sizes.",
     promptBreakdown: "Stored data by state (text + images)", expired: "Expired", unexpired: "Unexpired",
     manage: "Manage handoffs", manageNote: "Expired handoffs are deleted automatically. Nothing is selected automatically.",
@@ -475,6 +492,7 @@ Do not apply database migrations by hand: the deployment applies the pending one
   legacyDeviceOther: "Choose another",
   withoutConnectTitle: "For agents set up without connect",
   withoutConnectBody: "Agents that use the plugin, or that you configure by hand, follow this rule. Paste it into a project's AGENTS.md or the agent's user instructions. Agents set up with the connect command already have it.",
+  withoutConnectBodyAccess: "Native clients signed in with Google, and agents you configure by hand, follow this rule. Paste it into a project's AGENTS.md or the agent's user instructions. Agents set up with the connect command already have it.",
   setup: {
     title: "Set up AgentRelay",
     sub: "Four steps. Do steps 1 and 2 once on each device.",
@@ -490,6 +508,8 @@ Do not apply database migrations by hand: the deployment applies the pending one
     agent: {
       title: "Connect an agent here", action: "Connect an agent",
       body: (device: string) => `Create a connection for the agent on ${device} and run the command it shows. Using the ChatGPT or Codex plugin instead? Choose it in the same place.`,
+      bodyAccess: (device: string) => `Create a connection for the agent on ${device} and run the command it shows. Using Claude Code, Codex or ChatGPT signed in with Google instead? Choose it in the same place.`,
+      native: (device: string) => `You said ${device} uses a native client.`,
       done: (device: string) => `An agent on ${device} has connected.`, plugin: (device: string) => `You said ${device} uses the plugin.`,
     },
     nextDevice: {

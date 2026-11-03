@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { projectRoot } from "../../tooling/environment/project-root.mjs";
 import { testRequest } from "../support/integration-http.mjs";
+import { identityHeaders } from "../support/test-identity.mjs";
 
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5178";
 if (!["127.0.0.1", "localhost"].includes(new URL(base).hostname)) throw new Error("Bridge checks only run against a local database.");
@@ -14,7 +15,7 @@ const check = (name, condition) => { assert.ok(condition, name); passed.push(nam
 
 async function api(path, method = "GET", data) {
   return testRequest(base + path, { method, body: data === undefined ? undefined : JSON.stringify(data),
-    headers: { "Content-Type": "application/json", "oai-authenticated-user-id": owner } });
+    headers: { "Content-Type": "application/json", ...identityHeaders(owner) } });
 }
 
 let child, token, handoffId;
@@ -53,7 +54,7 @@ try {
   const waiting = await tool("list_handoffs", { targetDevice: "bridge-receiver", status: "ready" });
   check("list_handoffs finds it for the receiving device", waiting.data.handoffs.some((row) => row.id === handoffId));
   const fetched = await tool("get_handoff", { id: handoffId });
-  check("get_handoff returns the exact text", fetched.data.content === content);
+  check("get_handoff returns the exact text", fetched.data.prompt === content);
   const claimed = await tool("claim_handoff", { id: handoffId, device: "bridge-receiver", version: fetched.data.version });
   check("claim_handoff moves it to claimed", claimed.data?.status === "claimed");
   const stale = await tool("claim_handoff", { id: handoffId, device: "bridge-receiver", version: fetched.data.version });

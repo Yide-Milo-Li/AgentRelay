@@ -20,8 +20,10 @@ test("the site endpoint must be https, or a loopback Worker, and end with /api/a
   assert.throws(() => resolveSite({ url: "https://relay.example.com/mcp" }), /must end with \/api\/agent\/mcp/);
 });
 
-test("secrets are required, and retired Agent Tokens are rejected without echoing them", () => {
-  assert.throws(() => requireSecrets(profile, { AGENTRELAY_AGENT_TOKEN: TOKEN }), /Set AGENTRELAY_SITES_GATEWAY_TOKEN/);
+test("the Agent Token is required, the gateway token is not, and retired Agent Tokens are rejected without echoing them", () => {
+  assert.throws(() => requireSecrets(profile, { AGENTRELAY_SITES_GATEWAY_TOKEN: "g" }), /Set AGENTRELAY_AGENT_TOKEN/);
+  // A deployment without the Sites gate needs none; connect checks the Site before it accepts its absence.
+  assert.doesNotThrow(() => requireSecrets(profile, { AGENTRELAY_AGENT_TOKEN: TOKEN }));
   const retired = `relay_agent_${"b".repeat(64)}`;
   assert.throws(() => requireSecrets(profile, { AGENTRELAY_AGENT_TOKEN: retired, AGENTRELAY_SITES_GATEWAY_TOKEN: "g" }), (error) => /retired credentials/.test(error.message) && !error.message.includes(retired));
   assert.doesNotThrow(() => requireSecrets(profile, { AGENTRELAY_AGENT_TOKEN: TOKEN, AGENTRELAY_SITES_GATEWAY_TOKEN: "g" }));
@@ -142,6 +144,11 @@ const codexConfig = codex.config.template.replaceAll("{siteUrl}", "https://relay
 test("persistValues fills the two tokens into each profile's variables", () => {
   const env = { AGENTRELAY_AGENT_TOKEN: TOKEN, AGENTRELAY_SITES_GATEWAY_TOKEN: "gateway-value" };
   assert.deepEqual(persistValues(codex, env), { AGENTRELAY_AGENT_TOKEN: TOKEN, AGENTRELAY_SITES_GATEWAY_HEADER: "Bearer gateway-value" });
+});
+
+test("without a gateway token persistValues leaves the gateway variables out instead of saving them empty", () => {
+  assert.deepEqual(persistValues(codex, { AGENTRELAY_AGENT_TOKEN: TOKEN }), { AGENTRELAY_AGENT_TOKEN: TOKEN });
+  assert.deepEqual(persistValues(codex, { AGENTRELAY_AGENT_TOKEN: TOKEN, AGENTRELAY_SITES_GATEWAY_TOKEN: " " }), { AGENTRELAY_AGENT_TOKEN: TOKEN });
 });
 
 test("a file-based profile writes one managed block and keeps the rest of the file", () => {

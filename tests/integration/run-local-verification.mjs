@@ -6,6 +6,7 @@ import path from "node:path";
 import { projectRoot } from "../../tooling/environment/project-root.mjs";
 import { execTestFileSync, runTestNode, startTestNode, sanitizeRunLogs } from "../support/integration-process.mjs";
 import { localTestEnvironment, startLocalPreview } from "../support/local-preview.mjs";
+import { prepareTestSignIn } from "../support/test-identity.mjs";
 import { probeLocalPreview } from "./probe-local-preview.mjs";
 
 const flags = new Set(process.argv.slice(2));
@@ -41,9 +42,16 @@ report.worker = { compatibilityDate: configValue.compatibility_date, compatibili
   sourceNoBundle: configValue.no_bundle, previewBundling: true,
   d1Bindings: (configValue.d1_databases ?? []).map(item => item.binding), r2Bindings: (configValue.r2_buckets ?? []).map(item => item.binding) };
 const save = () => writeFileSync(path.join(directory, "results.json"), JSON.stringify(report, null, 2));
-let preview, active, shared;
+
+// A cloudflare build trusts a per-run test key served on loopback; the suites and the probes sign in with it.
+const signIn = await prepareTestSignIn(), accessVars = signIn.vars, accessEnv = signIn.env;
+report.target = signIn.target;
+console.log(`Build target: ${report.target}`);
+Object.assign(process.env, accessEnv);
+
+let preview, active, shared, misconfigured;
 const controller = new AbortController();
-const abort = () => { controller.abort(); active?.stop(); shared?.stop(); preview?.stop(); };
+const abort = () => { controller.abort(); active?.stop(); shared?.stop(); misconfigured?.stop(); preview?.stop(); };
 process.once("SIGINT", abort); process.once("SIGTERM", abort);
 
 async function migrate(env, label) {
@@ -79,7 +87,7 @@ try {
       preview?.stop(); if (preview) await preview.done;
       const env = localTestEnvironment(path.join(directory, `worker-${round}`));
       await migrate(env, `migrations-${round}`);
-      preview = await startLocalPreview(env, { label: `preview-${round}`, timeoutMs: 3_600_000, signal: controller.signal });
+      preview = await startLocalPreview(env, { label: `preview-${round}`, timeoutMs: 3_600_000, signal: controller.signal, vars: accessVars });
       recordPreview(preview, `preview-${round}`);
     }
     const result = { round, previewPid: preview.child.pid, coldStart: round !== 2 };
@@ -91,7 +99,7 @@ try {
     if (!probesOnly) {
       const suiteDirectory = path.join(directory, `round-${round}`);
       mkdirSync(suiteDirectory, { recursive: true });
-      const env = { ...preview.env, AGENTRELAY_TEST_REPORT: path.join(suiteDirectory, "suites.json") };
+      const env = { ...preview.env, ...accessEnv, AGENTRELAY_TEST_REPORT: path.join(suiteDirectory, "suites.json") };
       // Invoke the actual package command so the report proves the documented command completed.
       const npm = process.env.npm_execpath;
       const args = npm ? [npm, "run", "test:integration"] : ["tests/integration/run-suites.mjs"];
@@ -105,11 +113,26 @@ try {
   if (acceptance || flags.has("--workspace")) {
     const env = localTestEnvironment(path.join(directory, "shared"), preview.env.AGENTRELAY_TEST_STATE);
     const workspace = `shared-qa-${crypto.randomUUID().slice(0, 8)}`;
-    shared = await startLocalPreview(env, { label: "shared-preview", workspace, signal: controller.signal });
+    shared = await startLocalPreview(env, { label: "shared-preview", workspace, signal: controller.signal, vars: accessVars });
     recordPreview(shared, "shared-preview");
     report.workspace = await runAgainstPreview(["tests/integration/verify-agentrelay-workspace.mjs"], {
-      ...shared.env, AGENTRELAY_TEST_WORKSPACE_OWNER: workspace, AGENTRELAY_TEST_PRIVATE_URL: preview.url,
+      ...shared.env, ...accessEnv, AGENTRELAY_TEST_WORKSPACE_OWNER: workspace, AGENTRELAY_TEST_PRIVATE_URL: preview.url,
     }, "shared-workspace", 300_000);
+  }
+  if (report.target === "cloudflare") {
+    // A cloudflare Worker without its Access settings must fail closed: 503 on the API, a notice on the page.
+    const env = localTestEnvironment(path.join(directory, "misconfigured"));
+    await migrate(env, "migrations-misconfigured");
+    misconfigured = await startLocalPreview(env, { label: "misconfigured-preview", signal: controller.signal, readyStatus: 503 });
+    recordPreview(misconfigured, "misconfigured-preview");
+    // Plain fetch: the shared test client treats every 5xx as a transport failure, and 503 is the expected answer here.
+    const api = await fetch(`${misconfigured.url}/api/storage`, { headers: { Connection: "close" }, signal: AbortSignal.timeout(15_000) });
+    const page = await fetch(`${misconfigured.url}/`, { headers: { Connection: "close" }, signal: AbortSignal.timeout(15_000) });
+    const pageText = await page.text();
+    report.misconfigured = { apiStatus: api.status, apiError: (await api.json().catch(() => null))?.error, pageStatus: page.status, pageNotice: pageText.includes("Access settings") };
+    save();
+    assert.equal(api.status, 503, "A cloudflare Worker without Access settings must answer 503.");
+    assert.ok(report.misconfigured.pageNotice, "The page must explain the missing Access settings.");
   }
   report.completed = true;
 } catch (error) {
@@ -118,7 +141,7 @@ try {
   console.error(error.message);
 } finally {
   abort();
-  await Promise.all([preview?.done, shared?.done].filter(Boolean));
+  await Promise.all([preview?.done, shared?.done, misconfigured?.done, signIn.close()].filter(Boolean));
   sanitizeRunLogs(directory);
   process.removeListener("SIGINT", abort); process.removeListener("SIGTERM", abort);
   save();

@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { execTestFileSync as execFileSync } from "../support/integration-process.mjs";
 import { testRequest } from "../support/integration-http.mjs";
+import { identityHeaders } from "../support/test-identity.mjs";
 
 const base = process.env.AGENTRELAY_TEST_URL;
 if (!base || !["localhost", "127.0.0.1"].includes(new URL(base).hostname)) throw new Error("Notification event checks require a local built Worker URL.");
@@ -12,7 +13,7 @@ const run = crypto.randomUUID(), owner = `notify-qa-${run}`, stranger = `notify-
 // Expiry reminders get a workspace of their own, so its first sweep is not held back by the sweeps above.
 const reminderOwner = `notify-expiry-${run}`, reminderBrowser = crypto.randomUUID();
 const check = (name, condition) => { assert.ok(condition, name); passed.push(name); };
-const identity = user => ({ "oai-authenticated-user-id": user, "oai-authenticated-user-email": "test@sites.test" });
+const identity = user => ({ ...identityHeaders(user, "test@sites.test") });
 const request = (path, method = "GET", data, headers = identity(owner)) => testRequest(base + path, { method, headers: { "Content-Type": "application/json", ...headers }, body: data === undefined ? undefined : JSON.stringify(data) });
 const sql = command => execFileSync(process.execPath, ["--import", "./scripts/sites-env.mjs", "./node_modules/wrangler/bin/wrangler.js", "d1", "execute", "DB", "--local", "--config", process.env.AGENTRELAY_TEST_CONFIG ?? "dist/server/wrangler.json",
   "--persist-to", process.env.AGENTRELAY_TEST_STATE ?? ".wrangler/state", "--command", command], { stdio: "pipe" }).toString();

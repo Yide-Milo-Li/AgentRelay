@@ -177,10 +177,13 @@ test("the bridge refuses to start without a site URL or credentials, and says wh
   const noUrl = await run({ AGENTRELAY_AGENT_TOKEN: TOKEN, AGENTRELAY_SITES_GATEWAY_TOKEN: GATEWAY });
   assert.equal(noUrl.code, 1);
   assert.match(noUrl.stderr, /set AGENTRELAY_MCP_URL/);
+  const noToken = await run({ AGENTRELAY_MCP_URL: ENDPOINT, AGENTRELAY_SITES_GATEWAY_TOKEN: GATEWAY });
+  assert.equal(noToken.code, 1);
+  assert.match(noToken.stderr, /Set AGENTRELAY_AGENT_TOKEN/);
+  // A deployment without the Sites gate needs no gateway token: the bridge starts and, with stdin closed, ends cleanly.
   const noGateway = await run({ AGENTRELAY_MCP_URL: ENDPOINT, AGENTRELAY_AGENT_TOKEN: TOKEN });
-  assert.equal(noGateway.code, 1);
-  assert.match(noGateway.stderr, /Set AGENTRELAY_SITES_GATEWAY_TOKEN/);
+  assert.equal(noGateway.code, 0, noGateway.stderr);
   const plainHttp = await run({ AGENTRELAY_MCP_URL: "http://relay.example.com/api/agent/mcp", AGENTRELAY_AGENT_TOKEN: TOKEN, AGENTRELAY_SITES_GATEWAY_TOKEN: GATEWAY });
   assert.match(plainHttp.stderr, /HTTPS/);
-  for (const result of [noUrl, noGateway, plainHttp]) assert.equal(result.stdout, "", "stdout stays empty on failure");
+  for (const result of [noUrl, noToken, noGateway, plainHttp]) assert.equal(result.stdout, "", "stdout stays empty");
 });

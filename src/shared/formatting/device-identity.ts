@@ -100,7 +100,7 @@ export function resolveStop(index: DeviceIndex, id: string | null | undefined, n
 }
 
 /** Names on handoffs that resolve to no registered device, first spelling wins. The reserved "any device" is never listed. */
-export function unregisteredNames(rows: readonly Handoff[], index: DeviceIndex): string[] {
+export function unregisteredNames(rows: readonly (Pick<Handoff, "sourceDevice" | "targetDevice"> & { sourceDeviceId?: string | null; targetDeviceId?: string | null })[], index: DeviceIndex): string[] {
   const seen = new Map<string, string>();
   for (const row of rows) {
     for (const [id, name] of [[row.sourceDeviceId, row.sourceDevice], [row.targetDeviceId, row.targetDevice]] as const) {

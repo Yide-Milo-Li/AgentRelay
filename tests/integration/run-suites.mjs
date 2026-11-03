@@ -2,7 +2,9 @@ import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { runTestNode } from "../support/integration-process.mjs";
 
-const suites = ["verify-agentrelay", "verify-agentrelay-agents", "verify-agentrelay-storage", "verify-agentrelay-projects", "verify-agentrelay-attachments", "verify-agentrelay-bridge", "verify-agentrelay-receipts", "verify-agentrelay-git-context"];
+const suites = ["verify-agentrelay", "verify-agentrelay-agents", "verify-agentrelay-storage", "verify-agentrelay-projects", "verify-agentrelay-attachments", "verify-agentrelay-bridge", "verify-agentrelay-receipts", "verify-agentrelay-git-context", "verify-agentrelay-inbox-list",
+  // Access identity exists only on the cloudflare build target.
+  ...(process.env.AGENTRELAY_TEST_TARGET === "cloudflare" ? ["verify-agentrelay-access"] : [])];
 const results = [];
 try {
   for (const suite of suites) {

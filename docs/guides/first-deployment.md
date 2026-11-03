@@ -1,14 +1,16 @@
-# First Deployment
+# Deploy to ChatGPT Sites
 
-This guide takes a fresh clone of AgentRelay to a live Site in your own ChatGPT account, and to your first handoff between two devices. The deployment workflow is intended to update the same Site and apply only pending database migrations; review the verification limits below before upgrading.
+This guide takes a fresh clone of AgentRelay to a private Site in your own ChatGPT account, and to your first handoff between two devices. Codex with the Sites plugin does every Sites step from a request you paste: it deploys, and later reads the Site's gateway token. Other devices need no Codex.
 
-In the flow this guide supports, Codex with the Sites tools and access to your Site does every Sites step: deploying, and reading the Site's gateway token. Other devices need no Codex. The guide follows the workflow documented by the Sites skill. Earlier live acceptance covered a first private deployment, a Windows token-to-plugin handoff and redeployment of the same saved version. That acceptance predates the framework and toolchain upgrade. The upgraded build has since been deployed once as a new private Site, where only browser notifications were checked; the handoff and agent flows have not been rerun on it. The remaining limits are listed below.
+Not sure this is the right option? [Choose where to run it](../../README.md#1-choose-where-to-run-it) compares it with [deploying to your own Cloudflare account](cloudflare-deployment.md).
+
+> **Status.** A first private deployment, a handoff between two physical Windows devices and a redeployment were verified live on a build from before the framework and toolchain upgrade. The current build has been deployed once, to a new Site, where only browser notifications were checked. A redeployment updates the same Site and applies only pending database migrations; read [Known limits](#known-limits) before upgrading a Site that holds data.
 
 ## What you need
 
 - A ChatGPT account eligible for Sites in your region and workspace, used through Codex with the Sites plugin. Check current [availability, limits and pricing](https://learn.chatgpt.com/docs/sites); a subscription alone does not guarantee access. The standalone Codex CLI and IDE extension do not provide a Sites management view; see [Create a site](https://learn.chatgpt.com/docs/sites/creating-a-site).
 - Git, and Node.js `>=22.13.0` on the machine where you run Codex and on each device whose agent you connect with a token. The Site's ChatGPT/Codex plugin needs neither.
-- The local token client supports one Site per operating-system user. If that user already connects to another Site, use a separate OS user or machine for this setup. Switching ChatGPT accounts leaves the local MCP configuration, rules, skills and credentials in place.
+- The local token client supports one Site per operating-system user. If that user already connects to another Site, remove those connections with `disconnect --url <other-site>` (see [agent connections](agent-connections.md#remove-access)), or use a separate OS user or machine for this setup. Switching ChatGPT accounts leaves the local MCP configuration, rules, skills and credentials in place.
 - No database setup: the Site gets its own D1 database, and its migrations are applied for you.
 
 ## 1. Clone

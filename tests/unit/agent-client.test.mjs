@@ -146,6 +146,51 @@ test("DeepSeek Harness forwards environment-stored credentials by name only, and
   assert.equal(profilePath(profile, profile.ruleFile, "/home/u", {}), path.join("/home/u", ".dsh", "AGENTS.md"));
 });
 
+// A deployment whose agent path has no sign-in gate: without an Agent Token AgentRelay itself answers. `sent` records
+// every request's headers. `gated` adds the Sites gate in front, which only the gateway header passes.
+function standalone({ id = "a", gated = false, sent = [] } = {}) {
+  return async (url, init = {}) => {
+    const headers = init.headers ?? {};
+    sent.push(headers);
+    if (gated && !headers["OAI-Sites-Authorization"]) return new Response("<html>Sign in</html>", { status: 403, headers: { "Content-Type": "text/html" } });
+    if (!headers.Authorization) return new Response(JSON.stringify({ error: "A valid personal Agent Token is required." }), { status: 401, headers: { "Content-Type": "application/json" } });
+    return reply(id)(url);
+  };
+}
+test("a Site without the Sites gate connects with the Agent Token alone and saves no gateway reference", async () => {
+  const f = fixture(), sent = [];
+  try {
+    await connect({ profile: "codex", url: endpoint, connection: "a", transport: "bridge" }, { agentToken: secrets.agentToken }, { ...f.settings, store: f.store, fetchImpl: standalone({ sent }) });
+    const record = readManifest(f.settings.home).connections.a;
+    assert.equal(record.gatewayRef, null);
+    assert.deepEqual([...f.data.keys()], [record.credentialRef]);
+    const loaded = await readConnection("a", { home: f.settings.home, store: f.store });
+    assert.equal(loaded.gatewayToken, null);
+    assert.deepEqual(authHeaders(loaded), { Authorization: `Bearer ${secrets.agentToken}` });
+    assert.ok(sent.every(headers => !("OAI-Sites-Authorization" in headers)), "no request carries a gateway header");
+  } finally { f.close(); }
+});
+test("environment storage without a gateway saves and forwards the Agent Token variable only", async () => {
+  const f = fixture(); let names;
+  try {
+    await connect({ profile: "codex", url: endpoint, connection: "a", storage: "env", transport: "bridge" }, { agentToken: secrets.agentToken, gatewayToken: "" }, { ...f.settings, fetchImpl: standalone(), persist: n => { names = n; } });
+    assert.deepEqual(names, ["AGENTRELAY_CONNECTION_A"]);
+    const loaded = await readConnection("a", { home: f.settings.home, env: { AGENTRELAY_CONNECTION_A: secrets.agentToken } });
+    assert.equal(loaded.gatewayToken, null);
+    assert.deepEqual(patchRows(dshRow({ storage: "env", credentialRef: "connection-dsh", gatewayRef: null }))[0].config.env, { AGENTRELAY_CONNECTION_DSH: { js: "process.env.AGENTRELAY_CONNECTION_DSH" } });
+  } finally { f.close(); }
+});
+test("a Site behind the Sites gate refuses a connection without its gateway token before anything is written", async () => {
+  const f = fixture();
+  try {
+    await assert.rejects(connect({ profile: "codex", url: endpoint, connection: "a", transport: "bridge" }, { agentToken: secrets.agentToken }, { ...f.settings, store: f.store, fetchImpl: standalone({ gated: true }) }),
+      /needs its gateway token as well as the Agent Token/);
+    assert.equal(f.data.size, 0); assert.deepEqual(readManifest(f.settings.home).connections, {});
+    await connect({ profile: "codex", url: endpoint, connection: "a", transport: "bridge" }, secrets, { ...f.settings, store: f.store, fetchImpl: standalone({ gated: true }) });
+    assert.equal(f.data.size, 2);
+  } finally { f.close(); }
+});
+
 test("environment compatibility uses isolated variables and independent shell blocks", async () => {
   const f = fixture(); let names;
   try {

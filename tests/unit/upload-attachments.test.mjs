@@ -5,16 +5,19 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { projectRoot } from "../../tooling/environment/project-root.mjs";
-import { UploadError, agentTokenFrom, gatewayAuthorization, prepareFiles, uploadImages } from "../../tooling/agents/upload-attachments.mjs";
+import { agentHeaders, agentTokenFrom, gatewayAuthorization, prepareFiles, uploadImages } from "../../tooling/agents/upload-attachments.mjs";
 import { flat } from "../support/image-fixtures.mjs";
 
 const TOKEN = `agentrelay_${"a".repeat(64)}`;
 const SITE = "https://agentrelay.example.chatgpt.site";
 
-test("gateway authorization accepts Codex's whole header or a bare token, and nothing else", () => {
+test("gateway authorization accepts Codex's whole header or a bare token, and is absent without either", () => {
   assert.equal(gatewayAuthorization({ AGENTRELAY_SITES_GATEWAY_HEADER: "Bearer abc", AGENTRELAY_SITES_GATEWAY_TOKEN: "ignored" }), "Bearer abc");
   assert.equal(gatewayAuthorization({ AGENTRELAY_SITES_GATEWAY_TOKEN: "abc" }), "Bearer abc");
-  assert.throws(() => gatewayAuthorization({}), UploadError);
+  assert.equal(gatewayAuthorization({ AGENTRELAY_SITES_GATEWAY_TOKEN: " " }), null);
+  assert.equal(gatewayAuthorization({}), null);
+  assert.deepEqual(agentHeaders("t", null), { Authorization: "Bearer t" });
+  assert.deepEqual(agentHeaders("t", "Bearer g"), { Authorization: "Bearer t", "OAI-Sites-Authorization": "Bearer g" });
 });
 
 test("the Agent Token must be set and current", () => {

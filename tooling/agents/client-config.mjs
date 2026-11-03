@@ -1,7 +1,7 @@
 import { ClientError, envName } from "./credential-store.mjs";
 import { readFileSync, mkdirSync, writeFileSync, existsSync, unlinkSync, renameSync, rmSync } from "node:fs";
 import path from "node:path";
-import { CONFIG_BEGIN, CONFIG_END, upsertConfigBlock, upsertRuleBlock, loadProfiles, findProfile, profilePath } from "./device-setup.mjs";
+import { CONFIG_BEGIN, CONFIG_END, upsertConfigBlock, upsertRuleBlock, removeConfigBlock, removeRuleBlock, loadProfiles, findProfile, profilePath } from "./device-setup.mjs";
 import { renderDeviceRule, renderSkillRule } from "../../src/shared/formatting/device-rule.mjs";
 import { clientCommand, planSkill } from "./skill-install.mjs";
 
@@ -20,7 +20,7 @@ export function connectionConfig({ profile, endpoint, id, launcher, node = proce
     if (transport !== "bridge") throw new ClientError(`${label} requires bridge transport.`);
     // dsh strips inherited variables named like *KEY*/*TOKEN*/*SECRET* from MCP servers, so environment-stored
     // credentials are forwarded by name. Only the variable names enter the file, never their values.
-    const forwarded = storage === "env" ? [envName(credentialRef), envName(gatewayRef)] : [];
+    const forwarded = storage === "env" ? [credentialRef, gatewayRef].filter(Boolean).map(envName) : [];
     // A bare top-level row only overrides a row that already exists; a new plugin row must sit in an insert block.
     return [
       "- insert:",
@@ -86,6 +86,25 @@ function itemRows(body) {
  * dsh treats as an override of a missing row) is replaced too. Every other item, comment and line ending stays as it was.
  */
 export function upsertPatchRow(existing, block, rowId) {
+  const { eol, lines, readable, ours } = patchItems(existing, rowId);
+  if (readable.some(item => item.rows.some(row => row.id !== rowId && row.serverNames.includes("agentrelay"))))
+    throw new ClientError("Another DeepSeek Harness row already uses serverName agentrelay. Review and remove it before connecting; no files changed.");
+  const blockLines = block.split("\n");
+  if (ours.length) return [...lines.slice(0, ours[0].start), ...blockLines, ...lines.slice(ours[0].end)].join(eol);
+  if (!existing.trim()) return blockLines.join(eol) + eol;
+  return existing.replace(/\s*$/, "") + eol + blockLines.join(eol) + eol;
+}
+
+/** The patch file without AgentRelay's insert block (or bare row); every other item, comment and line ending stays. */
+export function removePatchRow(existing, rowId) {
+  const { eol, lines, ours } = patchItems(existing, rowId);
+  if (!ours.length) return existing;
+  const kept = [...lines.slice(0, ours[0].start), ...lines.slice(ours[0].end)].join(eol);
+  return kept.trim() ? kept.replace(/\s*$/, "") + eol : "";
+}
+
+/** A patch file's top-level items and the one that declares `rowId`, refusing a file that cannot be edited safely. */
+function patchItems(existing, rowId) {
   const eol = existing.includes("\r\n") ? "\r\n" : "\n", lines = existing.split(/\r?\n/);
   const topLevel = lines.filter(line => /^\S/.test(line) && !line.startsWith("#") && line !== "---");
   if (topLevel.some(line => !/^-(\s|$)/.test(line)))
@@ -101,12 +120,7 @@ export function upsertPatchRow(existing, block, rowId) {
   if (ours.some(item => item.rows.length > 1))
     throw new ClientError(`The ${rowId} row shares an insert block with other rows. Move it into its own block and retry; no files changed.`);
   if (ours.length > 1) throw new ClientError(`The DeepSeek Harness patch file defines ${rowId} more than once. Keep one row and retry; no files changed.`);
-  if (readable.some(item => item.rows.some(row => row.id !== rowId && row.serverNames.includes("agentrelay"))))
-    throw new ClientError("Another DeepSeek Harness row already uses serverName agentrelay. Review and remove it before connecting; no files changed.");
-  const blockLines = block.split("\n");
-  if (ours.length) return [...lines.slice(0, ours[0].start), ...blockLines, ...lines.slice(ours[0].end)].join(eol);
-  if (!existing.trim()) return blockLines.join(eol) + eol;
-  return existing.replace(/\s*$/, "") + eol + blockLines.join(eol) + eol;
+  return { eol, lines, readable, ours };
 }
 
 /**
@@ -134,6 +148,31 @@ export function planConfiguration({ record, launcher, home, node, lang = "en", c
     next = JSON.stringify(value, null, 2) + "\n";
   }
   return [{ file: configTarget, text: next }, ...planInstructions({ record, launcher, lang, ruleTarget, skillDir, placeholderDir, version, root })];
+}
+
+/** Whether `text` starts connection `id`: the id follows `--connection` in a bridge argument list or a header helper. */
+const namesConnection = (text, id) => new RegExp(`--connection[^A-Za-z0-9_-]+${id}(?![A-Za-z0-9_-])`).test(text);
+
+/**
+ * The file changes that take a connection out of its agent, with the same per-format writers connect uses: the
+ * AgentRelay MCP entry when it starts this connection (an entry for another one is left and reported as
+ * `keptConfig`), and the rule block. Files that would not change are left out. Needs no Site.
+ */
+export function planRemoval({ record, configFile, ruleFile }) {
+  const profile = findProfile(loadProfiles(), record.profile), previous = read(configFile);
+  let next;
+  if (profile.config.format === "yaml") next = removePatchRow(previous, profile.config.rowId);
+  else if (record.profile === "codex") next = removeConfigBlock(previous);
+  else {
+    let value;
+    try { value = previous ? JSON.parse(previous) : {}; } catch { throw new ClientError(`${configFile} is not valid JSON. Repair it and retry; nothing was removed.`); }
+    if (value?.mcpServers?.agentrelay === undefined) next = previous;
+    else { delete value.mcpServers.agentrelay; next = JSON.stringify(value, null, 2) + "\n"; }
+  }
+  const config = next !== previous && namesConnection(previous, record.id) && !namesConnection(next, record.id);
+  const rule = read(ruleFile), ruleNext = removeRuleBlock(rule);
+  return { changes: [...config ? [{ file: configFile, text: next }] : [], ...ruleNext !== rule ? [{ file: ruleFile, text: ruleNext }] : []],
+    config, rule: ruleNext !== rule, keptConfig: next !== previous && !config };
 }
 
 /**

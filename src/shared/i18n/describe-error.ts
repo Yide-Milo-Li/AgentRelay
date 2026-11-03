@@ -5,6 +5,11 @@ import { dictionaries } from "./messages";
 // Server routes answer in English; the Chinese UI maps the known messages and shows any other one as sent.
 const serverErrorsZh: Record<string, string> = {
   "Sign in with ChatGPT first.": "请先使用 ChatGPT 登录。",
+  "Sign in first.": "请先登录。",
+  "This deployment's Cloudflare Access settings are missing or invalid.": "此部署的 Cloudflare Access 设置缺失或无效。",
+  "Cloudflare Access keys are unavailable. Try again shortly.": "暂时无法获取 Cloudflare Access 密钥，请稍后重试。",
+  "This deployment's database is full. Delete old handoffs in Settings › Storage, or move to a plan with more storage.": "此部署的数据库已满。请在“设置 › 存储”中删除旧交接，或改用存储空间更大的套餐。",
+  "This deployment has used today's database allowance. It resets at 00:00 UTC.": "此部署今天的数据库额度已用完，将在 UTC 00:00 重置。",
   "Enable notifications in this browser first.": "请先在此浏览器中开启通知。",
   "Browser notifications are not configured on this Site.": "此站点尚未配置浏览器通知。",
   "Only the Chrome and Edge push services are supported.": "仅支持 Chrome 和 Edge 的推送服务。",

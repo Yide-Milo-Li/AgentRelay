@@ -1,6 +1,6 @@
 # Local development and verification
 
-How to set up a checkout, run the local Worker and database, and run the verification suites. For deploying your own Site, start with the [first deployment guide](first-deployment.md).
+How to set up a checkout, run the local Worker and database, and run the verification suites. To deploy your own copy, start with [Deploy to ChatGPT Sites](first-deployment.md) or [Deploy to Cloudflare](cloudflare-deployment.md).
 
 ## Requirements
 
@@ -63,10 +63,11 @@ The runner records applied migrations in a `_agentrelay_migrations` table, so ru
 | `0017_handoff_git_context.sql` | Nullable `git_branch` and `git_base_commit` on handoffs: the code state the sender stopped at, set only on creation |
 | `0018_handoff_expiry_index.sql` | Index on owner, expiry and ID, read by the sweep that deletes expired handoffs |
 | `0019_push_keys.sql` | `push_keys`: the workspace's Web Push key pair and contact, one row per owner, written by the Worker the first time a browser opens the notification settings |
+| `0020_handoff_status_index.sql` | Index on owner, status, creation time and ID, read by the paged inbox list |
 
 This runner covers the local database only. On a Site, the Sites tooling applies the pending migrations before it uploads the Worker, so a deployment needs no manual database step (see the [first deployment guide](first-deployment.md)).
 
-`0002`, `0005`, `0006`, `0007`, `0008`, `0009`, `0010`, `0011`, `0012`, `0014`, `0015`, `0016`, `0017`, `0018` and `0019` only add tables, indexes, and nullable or defaulted columns, and `0013` only inserts missing history rows, so existing handoffs and tokens stay valid and the previous Worker version keeps working against the migrated database (it ignores the new tables; images that code deletes without releasing them are reclaimed by the next cleanup). It must be applied before code that reads the new columns runs: locally by `db:migrate:local`, on Sites by the deployment itself. When modifying `src/server/db/schema.ts`, run `npm run db:generate`, review the generated SQL in `drizzle/` (reject any table-rebuild statement), and apply pending migrations locally.
+`0002`, `0005`, `0006`, `0007`, `0008`, `0009`, `0010`, `0011`, `0012`, `0014`, `0015`, `0016`, `0017`, `0018`, `0019` and `0020` only add tables, indexes, and nullable or defaulted columns, and `0013` only inserts missing history rows, so existing handoffs and tokens stay valid and the previous Worker version keeps working against the migrated database (it ignores the new tables; images that code deletes without releasing them are reclaimed by the next cleanup). It must be applied before code that reads the new columns runs: locally by `db:migrate:local`, on Sites by the deployment itself, and on a standalone Cloudflare deployment by `npm run deploy:cloudflare` before it uploads the Worker. When modifying `src/server/db/schema.ts`, run `npm run db:generate`, review the generated SQL in `drizzle/` (reject any table-rebuild statement), and apply pending migrations locally.
 
 ## 3. Local Dev Server
 
@@ -76,6 +77,8 @@ npm run dev
 
 Default development server starts at `http://127.0.0.1:5173`. Sign in locally via `/signin-with-chatgpt?return_to=/` (mock identity `local_seedy`).
 
+With `AGENTRELAY_TARGET=cloudflare` the dev server serves the standalone build instead and stands in for Cloudflare Access: every request from this machine is signed in as `local@access.test` with a key made for that process, which only the dev Worker trusts. There is no sign-in page to visit.
+
 ## 4. Type Checking & Integration Testing
 
 ```bash
@@ -84,6 +87,8 @@ npm run check:architecture
 npm run test:unit
 npm run build
 ```
+
+Two build targets exist: `sites` (the default) and `cloudflare`, the standalone Worker behind Cloudflare Access (`AGENTRELAY_TARGET=cloudflare npm run build`). `npm run test:integration:local` detects the target `dist/` was built for: on `cloudflare` it serves a per-run Access key on loopback, signs every suite in with tokens from it, adds the Access suite and checks that a Worker without Access settings fails closed. Separately run suites and the browser scripts sign in the same way when hosted by `node tests/integration/run-notification-events.mjs <script>`, which starts a disposable built Worker for them. Changes to authentication, the connection wizard, Storage or the client should pass on both targets.
 
 The HTTP/D1 integration suites run against the **built Worker preview**. `verify-agentrelay.mjs` covers handoffs, MCP, device CRUD, id/name resolution and device deletion; `verify-agentrelay-agents.mjs` covers Agent Tokens, connection binding, Agent endpoint discovery, revocation, permanent removal and the list limits:
 
@@ -157,6 +162,10 @@ For a picture of how these pieces connect, open the interactive [system overview
 | Target | Entrypoint |
 | :--- | :--- |
 | Main view, search, polling | `src/app/_components/AgentRelayApp.tsx` |
+| Inbox list: paged summaries, server search, detail reads | `src/features/handoffs/inbox-list.ts`, `src/features/handoffs/hooks/use-inbox-list.ts`, `use-handoff-detail.ts`, `src/app/api/handoffs/route.ts` |
+| Build target and the identity source it reads | `src/shared/contracts/deployment-target.ts`, `src/server/auth/platform-user.ts`, `cloudflare-access.ts`, `sites-identity.ts`, `tooling/vite/deployment-target-guard.mjs` |
+| Standalone Cloudflare deployment | `scripts/deploy/cloudflare.mjs`, `tooling/deploy/`, `scripts/db/migrate-local.mjs` (`--remote`) |
+| Local Access stand-in for the dev server and tests | `tooling/environment/local-access.mjs`, `tooling/vite/local-access-plugin.mjs`, `tests/support/test-identity.mjs` |
 | Create handoff, detail & export | `src/features/handoffs/components/` |
 | Agent instructions & connection wizard | `src/features/agent-access/components/` |
 | Setup checklist and this browser's device choice | `src/app/_components/SetupChecklist.tsx`, `setup-progress.ts`, `use-setup-record.ts`, `src/features/devices/components/DeviceChooser.tsx` |
@@ -200,13 +209,14 @@ AgentRelay/
 ├── drizzle/               # SQL migration history and metadata
 ├── tests/                 # Unit and built Worker integration tests
 ├── scripts/               # Stable command entrypoints and agent setup commands
-├── tooling/               # Architecture, database, environment, installation, Vite, preview tools
+├── tooling/               # Architecture, database, deployment, environment, installation, Vite, preview tools
 ├── docs/architecture/     # System overview diagram and architectural decisions
 ├── docs/guides/           # Developer and external agent guides
 ├── docs/reference/        # Protocol, data model, HTTP routes and security invariants
 ├── docs/images/           # README screenshots (synthetic data, local Worker)
 ├── docs/operations/       # Investigations and operational records
 ├── design/                # Current design specification
+├── examples/              # Isolated sample code
 ├── public/                # Publicly served static assets
 ├── vendor/                # Third-party assets and licenses
 ├── outputs/               # Ignored verification reports, screenshots, archives
@@ -221,11 +231,21 @@ AgentRelay/
 - **Sites Project ID**: This template has no Site identity. Register your own private Site on first deployment, retain its returned project_id locally, and target that same Site for every upgrade.
 - **Template source**: This source export has no private repository history. Keep your deployment identity and runtime data out of contributions.
 - **Live URLs & MCP Endpoints**: Refer to the live URL returned by the Sites `get_site` API (e.g., `https://<your-agentrelay-domain>.chatgpt.site`, with native MCP at `/mcp` and external agent MCP at `/api/agent/mcp`). Owners can rename slugs or custom domains at any time; Agents must verify `current_live_url` via Sites `get_site` prior to deployment.
-- **Access Control & Workspace Isolation**: One Site is one workspace, keyed in the database by a single `ownerId`; every record operation is scoped to it. The Site's Sharing settings decide which other accounts may sign in, and they join the owner's workspace only when [sharing](../reference/shared-workspace.md) is enabled.
+- **Access Control & Workspace Isolation**: One deployment (a Site, or a standalone Cloudflare Worker) is one workspace, keyed in the database by a single `ownerId`; every record operation is scoped to it. The Site's Sharing settings decide which other accounts may sign in, and they join the owner's workspace only when [sharing](../reference/shared-workspace.md) is enabled.
+
+## Deploying to Cloudflare
+
+A standalone deployment is built, configured, migrated and uploaded by one command, following [Deploy to Cloudflare](cloudflare-deployment.md):
+
+```bash
+npm run deploy:cloudflare -- --dry-run
+```
+
+`--init` writes a starter config (`.local/cloudflare-deployment.json`, ignored) with a generated workspace key, and `--dry-run` checks everything without uploading or touching the remote database. Without it the command applies pending migrations with `npm run db:migrate:remote` (the ledger runner used locally) and then deploys with the pinned Wrangler. Afterwards `dist/` holds the deployment build; run `npm run build` before local previews.
 
 ## Publishing to your Site
 
-Publish with the Sites plugin rather than raw `wrangler deploy`, and never re-create a Site that already has a `project_id`. The [first deployment guide](first-deployment.md) holds a request you can paste into Codex for both the first deployment and every later update. In outline, Sites:
+Publish with the Sites plugin rather than raw `wrangler deploy`, and never re-create a Site that already has a `project_id`. [Deploy to ChatGPT Sites](first-deployment.md) holds a request you can paste into Codex for both the first deployment and every later update. In outline, Sites:
 
 1. **Targets your Site**: reads `project_id` from your local `.openai/hosting.json` and confirms it with `get_site`. With no `project_id` it creates a new private Site and records the id locally.
 2. **Builds and verifies**: installs dependencies, runs `npm run typecheck` and `npm run test:unit`, and builds with the project's build script.

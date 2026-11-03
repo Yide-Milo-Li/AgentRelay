@@ -1,4 +1,5 @@
 import { AgentRelayError } from "@/server/core/agent-relay-error";
+import { storageQuotaError } from "@/server/core/storage-quota";
 export function sameOrigin(request: Request) {
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin) throw new AgentRelayError("Cross-site writes are not accepted.", 403);
@@ -40,10 +41,14 @@ export function json(data: unknown, status = 200) {
   return Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
 }
 export function failure(error: unknown) {
-  if (!(error instanceof AgentRelayError)) {
+  const known = error instanceof AgentRelayError ? error : storageQuotaError(error);
+  if (!known) {
     // Log the storage cause only; query wrappers can contain private prompt text.
     const cause = (error as { cause?: { message?: string } })?.cause;
     console.error("AgentRelay API failure", cause?.message ?? (error as Error)?.name);
+    return json({ error: "AgentRelay is temporarily unavailable. Try again shortly." }, 500);
   }
-  return json({ error: error instanceof AgentRelayError ? error.message : "AgentRelay is temporarily unavailable. Try again shortly." }, error instanceof AgentRelayError ? error.status : 500);
+  const response = json({ error: known.message }, known.status);
+  if (known.retryAfterSeconds) response.headers.set("Retry-After", String(known.retryAfterSeconds));
+  return response;
 }

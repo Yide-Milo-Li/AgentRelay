@@ -25,6 +25,9 @@ export function localTestEnvironment(directory, state) {
   delete env.AGENTRELAY_TEST_URL;
   delete env.AGENTRELAY_TEST_PRIVATE_URL;
   delete env.AGENTRELAY_TEST_WORKSPACE_OWNER;
+  // Test sign-in material goes only to the processes that sign in, never to a preview by inheritance.
+  delete env.AGENTRELAY_TEST_TARGET;
+  delete env.AGENTRELAY_TEST_ACCESS_KEY;
   return env;
 }
 
@@ -36,8 +39,11 @@ async function availablePort() {
   return port;
 }
 
-/** Start a disposable built Worker. Readiness polls are separate from strict acceptance requests. */
-export async function startLocalPreview(env, { label = "preview", workspace, vars = {}, timeoutMs = 1_800_000, signal, bundle = true, drainBody = true, transport = "direct" } = {}) {
+/**
+ * Start a disposable built Worker. Readiness polls are separate from strict acceptance requests. `readyStatus` is what
+ * an unauthenticated `/api/storage` answers once the Worker is up: 401, or 503 for a deliberately misconfigured one.
+ */
+export async function startLocalPreview(env, { label = "preview", workspace, vars = {}, timeoutMs = 1_800_000, signal, bundle = true, drainBody = true, transport = "direct", readyStatus = 401 } = {}) {
   if (!["direct", "wrangler"].includes(transport)) throw new Error(`Unknown preview transport: ${transport}`);
   if (transport === "direct" && !bundle) throw new Error("Use the Wrangler transport for unbundled diagnostic controls.");
   const port = await availablePort();
@@ -72,12 +78,17 @@ export async function startLocalPreview(env, { label = "preview", workspace, var
     while (performance.now() - started < 45_000) {
       if (signal?.aborted) throw new Error("Preview startup interrupted.");
       if (exit) throw new Error(`Preview exited before readiness: ${JSON.stringify(exit)}`);
+      let status = null;
       try {
-        const response = await testRequest(`${url}/api/storage`, {}, { timeoutMs: 1_500, label: "readiness" });
-        if (response.status === 401 && (!bindingFixtures || fixtureUrl)) return { ...managed, url, transport,
-          env: { ...previewEnv, AGENTRELAY_TEST_URL: url, ...(fixtureUrl ? { AGENTRELAY_TEST_FIXTURE_URL: fixtureUrl } : {}) },
-          get exited() { return exit; }, get tail() { return managed.tail; } };
-      } catch { /* A newly starting listener may not accept requests yet. */ }
+        status = (await testRequest(`${url}/api/storage`, {}, { timeoutMs: 1_500, label: "readiness" })).status;
+      } catch (error) {
+        // A newly starting listener may not accept requests yet (no status). The test client also throws on any 5xx,
+        // but a deliberately misconfigured Worker that answers its expected 503 is up.
+        status = error.details?.status ?? null;
+      }
+      if (status === readyStatus && (!bindingFixtures || fixtureUrl)) return { ...managed, url, transport,
+        env: { ...previewEnv, AGENTRELAY_TEST_URL: url, ...(fixtureUrl ? { AGENTRELAY_TEST_FIXTURE_URL: fixtureUrl } : {}) },
+        get exited() { return exit; }, get tail() { return managed.tail; } };
       await delay(250);
     }
     throw new Error("Preview did not become ready within 45 seconds.");

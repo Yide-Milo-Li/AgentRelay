@@ -6,6 +6,6 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     sameOrigin(request);
-    return json(await rotateAgentToken(actorFrom(request), (await context.params).id, await body(request)));
+    return json(await rotateAgentToken(await actorFrom(request), (await context.params).id, await body(request)));
   } catch (e) { return failure(e); }
 }

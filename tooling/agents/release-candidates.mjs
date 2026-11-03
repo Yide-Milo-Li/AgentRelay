@@ -54,6 +54,10 @@ export function auditFiles(root, markers = privateMarkers(), { licenseCopyright 
     if (/agentrelay_[a-f0-9]{64}|(?:ghp|github_pat)_[A-Za-z0-9_]{25,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/.test(text)) findings.push(`${relative}: credential-shaped value`);
     const deployedUrls = text.match(/https:\/\/[a-z0-9.-]+\.chatgpt\.site/gi) ?? [];
     if (/appgprj_[0-9a-f]{8,}/.test(text) || deployedUrls.some(url => !new URL(url).hostname.split(".").includes("example"))) findings.push(`${relative}: private Site identity`);
+    // A standalone deployment's Worker host and Access team domain name the maintainer's Cloudflare account, as a Site
+    // URL names the Site: only synthetic ones, with an `example` or `test` label, may be exported.
+    const cloudflareHosts = [...text.matchAll(/\b([a-z0-9-]+(?:\.[a-z0-9-]+)*)\.(?:workers\.dev|cloudflareaccess\.com)\b/gi)].map(match => match[1].toLowerCase());
+    if (cloudflareHosts.some(name => !name.split(/[.-]/).some(label => label === "example" || label === "test"))) findings.push(`${relative}: private Cloudflare identity`);
     // A reviewed copyright notice is public attribution. Exempt only that exact LICENSE line from identity matching;
     // credential and Site checks above still inspect every byte, and every other occurrence remains a finding.
     const identityText = relative === "LICENSE" && licenseCopyright
@@ -97,7 +101,7 @@ export function exportSource(target, { sourceRoot = projectRoot } = {}) {
   mkdirSync(path.join(output, ".openai")); writeFileSync(path.join(output, ".openai/hosting.json"), JSON.stringify(manifest, null, 2) + "\n");
   // The private checkout's device preamble and repository retention policy do not belong in the public template.
   const agents = readFileSync(path.join(source, "AGENTS.md"), "utf8").replace(/<!--[\s\S]*?agentrelay:device-rule:end -->\s*/, "")
-    .replace(/### Private repository and future open-source release[\s\S]*?\n---/, "### Template deployment identity\n\nRegister a new private Site for each owner. Preserve the returned Site identity locally when upgrading. Never commit credentials, personal runtime data or another owner's Site configuration.\n\n---")
+    .replace(/### Private repository and future open-source release[\s\S]*?\n---/, "### Template deployment identity\n\nEach owner deploys their own copy: a new private Site, or a standalone Cloudflare Worker set up with `npm run deploy:cloudflare -- --init`. Keep the returned Site identity, or the deployment config in the ignored `.local/` directory, to target the same deployment on every upgrade. Never commit credentials, personal runtime data or another owner's Site or Cloudflare configuration.\n\n---")
     .replace(/^- Keep untracked personal plans[^\n]*\n/m, "- Keep personal notes and drafts in the ignored `.local/` directory and never commit them.\n")
     .replace("and re-render with the `archify` skill:", "and re-render with the `archify` skill (without it, update the JSON and say so in the pull request):");
   writeFileSync(path.join(output, "AGENTS.md"), agents);
@@ -114,11 +118,19 @@ export function exportSource(target, { sourceRoot = projectRoot } = {}) {
   }
   const ignore = path.join(output, ".gitignore");
   writeFileSync(ignore, readFileSync(ignore, "utf8").replace(/^\/?AGENTS\.md\r?\n/gm, ""));
-  const readmeFile = path.join(output, "README.md");
-  writeFileSync(readmeFile, readFileSync(readmeFile, "utf8")
-    .replace(/^> Note: `AGENTS\.md` is a local workspace instruction file.*$/m, "> Note: `AGENTS.md` is tracked contributor guidance in this template. Current architecture, security invariants and operational procedures are maintained in this `README.md`; repository organization and file placement rules are maintained in `AGENTS.md`.")
-    .replace(/^- \*\*Sites Project ID\*\*:.*$/m, "- **Sites Project ID**: This template has no Site identity. Register your own private Site on first deployment, retain its returned project_id locally, and target that same Site for every upgrade.")
-    .replace(/^- \*\*Future Open-Source Release\*\*:.*$/m, "- **Template source**: This source export has no private repository history. Keep your deployment identity and runtime data out of contributions."));
+  // The repository notes live in the development guide; older layouts kept them in the README.
+  const notes = {
+    "README.md": "> Note: `AGENTS.md` is tracked contributor guidance in this template. Current architecture, security invariants and operational procedures are maintained in this `README.md`; repository organization and file placement rules are maintained in `AGENTS.md`.",
+    "docs/guides/development.md": "> Note: `AGENTS.md` is tracked contributor guidance in this template. The [README](../../README.md) is the entry point. Architecture, security invariants and operational procedures are maintained in `docs/`: this guide, the [security invariants](../reference/security-invariants.md) and the other [reference documents](../reference/). Repository organization and file placement rules are maintained in `AGENTS.md`.",
+  };
+  for (const [name, note] of Object.entries(notes)) {
+    const file = path.join(output, name);
+    if (!existsSync(file)) continue;
+    writeFileSync(file, readFileSync(file, "utf8")
+      .replace(/^> Note: `AGENTS\.md` is a local workspace instruction file.*$/m, note)
+      .replace(/^- \*\*Sites Project ID\*\*:.*$/m, "- **Sites Project ID**: This template has no Site identity. Register your own private Site on first deployment, retain its returned project_id locally, and target that same Site for every upgrade.")
+      .replace(/^- \*\*Future Open-Source Release\*\*:.*$/m, "- **Template source**: This source export has no private repository history. Keep your deployment identity and runtime data out of contributions."));
+  }
   for (const file of walk(output).filter(file => file.endsWith(".md")))
     writeFileSync(file, unlinkMissing(readFileSync(file, "utf8"), target => existsSync(path.join(path.dirname(file), target))));
   canonicalizeSource(output);

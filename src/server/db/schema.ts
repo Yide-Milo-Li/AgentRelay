@@ -82,6 +82,9 @@ export const handoffs = sqliteTable("handoffs", {
   index("handoffs_owner_project").on(t.ownerId, t.projectId, t.createdAt),
   // Finds the expired rows the purge deletes, oldest first, without reading prompt pages.
   index("handoffs_owner_expiry").on(t.ownerId, t.expiresAt, t.id),
+  // The inbox (ready and claimed) and Done lists page newest first without walking the other status's rows; with
+  // expires_at it also covers the inbox count, so a poll never reads the rest of the workspace.
+  index("handoffs_owner_status_created").on(t.ownerId, t.status, t.createdAt, t.id, t.expiresAt),
   // Store the byte expression in the index, not another wire field or a manually maintained counter.
   index("handoffs_owner_storage").on(t.ownerId, sql`length(CAST(${t.content} AS BLOB))`, t.id, t.status, t.expiresAt, t.createdAt, t.updatedAt),
   // Logical size (prompt text plus attached images) for Storage sorting, filtering and totals. The index above is kept for older code.

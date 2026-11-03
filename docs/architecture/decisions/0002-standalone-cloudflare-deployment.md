@@ -1,0 +1,25 @@
+# 0002. Standalone Cloudflare deployment: a build target, Cloudflare Access, and no sign-in of our own
+
+Status: accepted. Implemented and verified on local Workers for both build targets; a deployment made from the guide, native MCP clients against it and CPU use on Workers Free remain unverified.
+
+## Context
+
+AgentRelay ran only on ChatGPT Sites, which supplies four things the code relied on: a sign-in gate with sharing, identity headers (`oai-authenticated-user-*`) that the platform strips from client requests, OAuth for native MCP clients at `/mcp`, and provisioning of D1 and R2 with migrations applied before each upload. People without Sites, or who want their data in an account they control, had no way to run it. The code already built a Cloudflare Worker with Static Assets, so the question was how to replace the Sites platform without weakening the workspace rules, adding sign-in code, or changing the Sites deployment.
+
+## Decisions
+
+1. **A build target, not a runtime switch.** `AGENTRELAY_TARGET=sites|cloudflare` is read at build time (`src/shared/contracts/deployment-target.ts`). Each build reads exactly one identity source. A `cloudflare` build must not contain code that reads the Sites headers, because nothing in front of a standalone Worker strips them: trusting them there would be a sign-in bypass. `tooling/vite/deployment-target-guard.mjs` fails such a build. The Sites build is unchanged.
+2. **Cloudflare Access for sign-in and membership; no sign-in code in the application.** Access with Google as identity provider sits in front of the Worker. The Worker verifies `Cf-Access-Jwt-Assertion` itself with WebCrypto (RS256 against the team's JWKS, issuer, audience, time bounds, user tokens only), because a Worker with Static Assets does not get `ctx.access`. Missing or invalid Access settings answer 503, a missing or invalid token 401; there is no fallback. Who may sign in is the Access policy, so the application keeps no member list.
+3. **One fixed workspace key per deployment.** The deploy command generates a random key once, keeps it in the untracked deployment config and always sets `AGENTRELAY_WORKSPACE_OWNER_ID` to it. Everyone the policy admits shares that workspace, and no person's login is the key, so a changed Access identity cannot orphan the data.
+4. **Agent tokens bypass Access; native clients use Access Managed OAuth.** A path application with a Bypass policy lets `/api/agent/*` reach AgentRelay, which already authenticates every request with a hashed, expiring, revocable Agent Token. The client detects such a deployment by asking `/api/agent/connection` without credentials and needs no gateway token there. Native clients reach `/mcp` through Access Managed OAuth and act as the person who signed in; one that cannot complete that flow uses a token at `/api/agent/mcp` instead.
+5. **Deployment tooling in the repository, resources created by the deployer.** `npm run deploy:cloudflare` builds the `cloudflare` target, writes the deployment's names, IDs and runtime values into the generated Wrangler config, applies pending migrations through the same ledger runner as local development (`db:migrate:remote`), and uploads with the pinned Wrangler. The deployer creates D1, R2 and the Access applications by following the guide. The first deployment goes out without Access settings, because the Access application's AUD tag exists only once the Worker does; that Worker refuses everyone until the second deployment.
+6. **Plan-aware limits, and a lighter inbox for both targets.** The config's `plan` sets the storage limit (500 MB on Workers Free, 10 GB on Paid); D1's full-database and daily-limit errors map to 507 and 503. Page renders measured above Workers Free's 10 ms CPU limit, so Workers Paid is recommended for daily use, and the inbox now reads paged summaries instead of every handoff's full text every ten seconds (see the [inbox list](../../reference/inbox-list.md)).
+
+## Consequences
+
+- Two builds to test. The integration runner detects the target `dist/` was built for, and every suite and browser check signs in through one helper that sends Sites headers or a signed Access token (`tests/support/test-identity.mjs`). The `cloudflare` dev server signs in through a local stand-in for Access.
+- Platform-specific UI (the gateway step, the Site's plugin or native clients, the sharing panel, storage limits) switches on the build-time target. Wire contracts do not carry it.
+- Access misconfiguration fails closed: a request that skips Access still gets 401 or 503 from the Worker.
+- Releases must not leak a deployment's identity: the source export gate refuses real `workers.dev` hosts and Access team domains, as it refuses real Site URLs.
+- Expiry sweeps and connection reminders stay request-driven, as on Sites; there is no scheduled job yet.
+- Not in scope: sign-in implemented in the application, an OAuth server of our own for `/mcp`, Cloudflare Pages, other hosts, and moving data between a Site and a standalone deployment.

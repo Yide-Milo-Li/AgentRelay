@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { flat, fromPixels } from "../support/image-fixtures.mjs";
 import { testRequest } from "../support/integration-http.mjs";
+import { identityHeaders } from "../support/test-identity.mjs";
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5179";
 const privateBase = process.env.AGENTRELAY_TEST_PRIVATE_URL;
 const workspace = process.env.AGENTRELAY_TEST_WORKSPACE_OWNER;
@@ -17,7 +18,7 @@ const passed = [], handoffIds = [], tokenIds = [], deviceIds = [];
 const check = (name, condition) => { assert.ok(condition, name); passed.push(name); };
 async function request(path, method = "GET", data, user = workspace, extra = {}, url = base) {
   return testRequest(url + path, { method, body: data === undefined ? undefined : JSON.stringify(data),
-    headers: { Connection: "close", "Content-Type": "application/json", ...(user ? { "oai-authenticated-user-id": user, "oai-authenticated-user-email": people[user] } : {}), ...extra } });
+    headers: { Connection: "close", "Content-Type": "application/json", ...(user ? { ...identityHeaders(user, people[user]) } : {}), ...extra } });
 }
 const agent = (token, name, args, url = base) => request("/api/agent/mcp", "POST",
   { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }, null, { Authorization: `Bearer ${token}` }, url);
@@ -26,10 +27,10 @@ const text = response => JSON.parse(response.data.result.content[0].text);
 async function upload(bytes, { user, token, url = base } = {}) {
   const key = crypto.randomUUID();
   return testRequest(url + (token ? "/api/agent/attachments" : "/api/attachments"), { method: "POST", body: bytes,
-    headers: { Connection: "close", "X-Upload-Key": key, ...(token ? { Authorization: `Bearer ${token}` } : { "oai-authenticated-user-id": user, "oai-authenticated-user-email": people[user] }) } });
+    headers: { Connection: "close", "X-Upload-Key": key, ...(token ? { Authorization: `Bearer ${token}` } : { ...identityHeaders(user, people[user]) }) } });
 }
 async function download(path, user, url = base) {
-  return testRequest(url + path, { headers: { Connection: "close", "oai-authenticated-user-id": user, "oai-authenticated-user-email": people[user] } }, { format: "bytes" });
+  return testRequest(url + path, { headers: { Connection: "close", ...identityHeaders(user, people[user]) } }, { format: "bytes" });
 }
 const sha = bytes => createHash("sha256").update(bytes).digest("hex");
 try {

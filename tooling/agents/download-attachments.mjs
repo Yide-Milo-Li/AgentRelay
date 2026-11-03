@@ -6,6 +6,7 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { IMAGE_EXTENSION, IMAGE_LIMITS, sha256Hex } from "../../src/shared/images/inspect-image.mjs";
+import { agentHeaders } from "./upload-attachments.mjs";
 
 const TIMEOUT_MS = 60_000;
 const SAFE_ID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -34,7 +35,7 @@ async function send(fetchImpl, url, init, label) {
 
 function refusal(response, label) {
   if (response.status === 401 || response.status === 403)
-    return new DownloadError(`${label}: AgentRelay refused the credentials (${response.status}). Check AGENTRELAY_AGENT_TOKEN and the Sites gateway token for this Site.`);
+    return new DownloadError(`${label}: AgentRelay refused the credentials (${response.status}). Check AGENTRELAY_AGENT_TOKEN and, on ChatGPT Sites, the gateway token for this Site.`);
   if (response.status === 404) return new DownloadError(`${label}: not found. The handoff or image does not exist in this workspace, or the handoff has expired.`);
   return null;
 }
@@ -43,7 +44,7 @@ function refusal(response, label) {
 export async function readManifest({ handoffId, siteUrl, agentToken, authorization, fetchImpl = fetch }) {
   const response = await send(fetchImpl, `${siteUrl}/api/agent/mcp`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${agentToken}`, "OAI-Sites-Authorization": authorization },
+    headers: { "Content-Type": "application/json", ...agentHeaders(agentToken, authorization) },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_handoff", arguments: { id: handoffId } } }),
   }, "manifest");
   const text = await response.text();
@@ -52,7 +53,7 @@ export async function readManifest({ handoffId, siteUrl, agentToken, authorizati
   let result = null;
   try { result = JSON.parse(text)?.result; } catch { /* A restricted site answers a wrong gateway token with an HTML page. */ }
   const payload = result?.content?.[0]?.text;
-  if (!response.ok || !result || typeof payload !== "string") throw new DownloadError(`manifest: answered ${response.status} without handoff data; check the endpoint URL and the Sites gateway token.`);
+  if (!response.ok || !result || typeof payload !== "string") throw new DownloadError(`manifest: answered ${response.status} without handoff data; check the endpoint URL and, on ChatGPT Sites, the gateway token.`);
   if (result.isError) throw new DownloadError(`manifest: ${payload.slice(0, 200)}`);
   let handoff;
   try { handoff = JSON.parse(payload); } catch { throw new DownloadError("manifest: the handoff answer was not understood."); }
@@ -86,7 +87,7 @@ export async function downloadImages({ handoffId, siteUrl, agentToken, authoriza
     const entry = { attachmentId: info.id, position: index + 1, path: target, mimeType: info.mimeType, bytes: info.bytes, sha256: info.sha256 };
     if (await hashOf(target) === info.sha256) { files.push(entry); continue; }
     const response = await send(fetchImpl, `${siteUrl}/api/agent/handoffs/${encodeURIComponent(handoffId)}/attachments/${encodeURIComponent(info.id)}`, {
-      headers: { Authorization: `Bearer ${agentToken}`, "OAI-Sites-Authorization": authorization },
+      headers: agentHeaders(agentToken, authorization),
     }, name);
     const refused = refusal(response, name);
     if (refused) throw refused;

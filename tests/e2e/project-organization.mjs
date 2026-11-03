@@ -4,11 +4,12 @@ import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { identityHeaders } from "../support/test-identity.mjs";
 
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5178";
 if (!["127.0.0.1", "localhost"].includes(new URL(base).hostname)) throw new Error("Project browser checks require a local Worker.");
 const run = crypto.randomUUID(), owner = `projects-browser-${run}`, session = `projects-${run.slice(0, 8)}`;
-const output = path.resolve(`outputs/projects-e2e/${run}`), headers = { "oai-authenticated-user-id": owner, "oai-authenticated-user-email": "projects@sites.test" };
+const output = path.resolve(`outputs/projects-e2e/${run}`), headers = identityHeaders(owner, "projects@sites.test");
 const localState = process.env.AGENTRELAY_TEST_STATE ?? ".wrangler/state";
 const localConfig = process.env.AGENTRELAY_TEST_CONFIG ?? "dist/server/wrangler.json";
 const binary = process.env.AGENT_BROWSER_BIN ?? (process.platform === "win32" ? path.join(process.env.APPDATA, "npm/node_modules/agent-browser/bin/agent-browser-win32-x64.exe") : "agent-browser");

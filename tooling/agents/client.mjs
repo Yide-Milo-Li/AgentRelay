@@ -4,9 +4,9 @@ import { readFileSync } from "node:fs";
 import { createInterface, emitKeypressEvents } from "node:readline";
 import os from "node:os";
 import path from "node:path";
-import { resolveSite, verifyConnection, persistUserEnv, loadProfiles, profilePath, expandHome, RULE_BEGIN, RULE_END } from "./device-setup.mjs";
+import { resolveSite, verifyConnection, persistUserEnv, clearUserEnv, loadProfiles, profilePath, expandHome, RULE_BEGIN, RULE_END } from "./device-setup.mjs";
 import { ClientError, clientHome, readManifest, saveManifest, systemStore, credentialRefs, envName, readConnection, authHeaders } from "./credential-store.mjs";
-import { planConfiguration, planInstructions, applyFileChanges } from "./client-config.mjs";
+import { planConfiguration, planInstructions, planRemoval, applyFileChanges } from "./client-config.mjs";
 import { installClient, rollbackClient, installedClientVersion, CLIENT_VERSION } from "./client-install.mjs";
 import { activeConnectionId, markActive } from "./active-connection.mjs";
 import { clientCommand, hasSkillTemplate, inspectSkill, planSkillRemoval, pruneSkillDirs, removedSkillDirs, samePath, withoutConflicts } from "./skill-install.mjs";
@@ -14,7 +14,7 @@ import { createBridge } from "./mcp-bridge.mjs";
 import { UploadError, uploadImages } from "./upload-attachments.mjs";
 import { DownloadError, downloadImages } from "./download-attachments.mjs";
 import { checkBase, gitContext } from "./git-context.mjs";
-import { checkGateway, copyToClipboard, gatewayRef, savedGateway, siteOrigin, validGateway } from "./gateway.mjs";
+import { checkGateway, copyToClipboard, gatewayRef, needsGateway, savedGateway, siteOrigin, validGateway } from "./gateway.mjs";
 
 export const HELP = `AgentRelay local client (Node.js >=22.13)
   install [--json]                Install/update the stable user launcher
@@ -28,6 +28,9 @@ export const HELP = `AgentRelay local client (Node.js >=22.13)
           [--skill-dir <path>] [--no-skill] [--json]
   skill --connection <id> [--remove] [--skill-dir <path>] [--rule-file <path>] [--lang en|zh] [--json]
                                   Install, repair or remove the agentrelay skill with the saved credentials
+  disconnect --url <site> | --connection <id> [--json]
+                                  Forget this device's connections to a Site (or one connection): agent entries, rules,
+                                  skills and saved credentials. Works offline; revokes nothing on the Site
   verify --connection <id> [--json]
                                   Check credentials, resolved identity, all five tools and the skill
   headers --connection <id>        JSON headers for the agent only; do not run to inspect credentials
@@ -41,6 +44,7 @@ export const HELP = `AgentRelay local client (Node.js >=22.13)
   rollback                        Select the previous installed client version
 A device-bound connection also gets the agentrelay skill and a short rule pointing to it; --no-skill keeps the full rule.
 Connect reads hidden input, or --stdin accepts one JSON object with agentToken and gatewayToken.
+A Site without the ChatGPT Sites sign-in gate (a standalone Cloudflare deployment) needs no gateway token; connect checks.
 --from-env explicitly imports the legacy AGENTRELAY_AGENT_TOKEN / AGENTRELAY_SITES_GATEWAY_TOKEN.
 Environment storage is plaintext and inherited by child processes; it is never selected automatically.`;
 
@@ -95,7 +99,7 @@ async function hiddenInput(label) {
 
 export async function verifyCredentials(record, secrets, fetchImpl = fetch) {
   const verdict = await verifyConnection({ endpoint: record.endpoint, ...secrets, fetchImpl });
-  if (!verdict.ok) throw new ClientError("The Site did not accept both credentials and expose the five expected tools. Check the Site URL, gateway credential and Agent Token.");
+  if (!verdict.ok) throw new ClientError("The Site did not accept the credentials and expose the five expected tools. Check the Site URL, the Agent Token and, on ChatGPT Sites, the gateway token.");
   let response, diagnostic;
   try {
     response = await fetchImpl(new URL("/api/agent/connection", record.endpoint), { headers: authHeaders(secrets), signal: AbortSignal.timeout(15_000), redirect: "error" });
@@ -118,11 +122,16 @@ export async function connect(options, secrets, { home = clientHome(), userHome 
   if (options.device && !/^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/.test(options.device)) throw new ClientError("Use the registered device id from the Site.");
   const storage = options.storage ?? "os";
   if (!["os", "env"].includes(storage)) throw new ClientError("Choose --storage os or --storage env.");
-  if (!/^agentrelay_[a-f0-9]{64}$/i.test(secrets.agentToken ?? "") || typeof secrets.gatewayToken !== "string" || !secrets.gatewayToken.trim() || /[\r\n]/.test(secrets.gatewayToken)) throw new ClientError("Enter a valid personal Agent Token and this Site's gateway token.");
+  if (!/^agentrelay_[a-f0-9]{64}$/i.test(secrets.agentToken ?? "")) throw new ClientError("Enter a valid personal Agent Token.");
+  const gatewayToken = secrets.gatewayToken === undefined || secrets.gatewayToken === null || secrets.gatewayToken === "" ? null : secrets.gatewayToken;
+  if (gatewayToken !== null && (typeof gatewayToken !== "string" || !gatewayToken.trim() || /[\r\n]/.test(gatewayToken))) throw new ClientError("Enter this Site's gateway token: one line.");
   const { endpoint } = resolveSite({ url: options.url });
-  const diagnostic = await verifyCredentials({ endpoint, id: options.connection, deviceId: options.device }, secrets, fetchImpl);
+  // Without a gateway token the Site must show it has no sign-in gate in front of its agent path.
+  if (gatewayToken === null && await needsGateway(new URL(endpoint).origin, fetchImpl)) throw new ClientError("This Site needs its gateway token as well as the Agent Token. Save it with gateway --stdin first, or include it.");
+  const diagnostic = await verifyCredentials({ endpoint, id: options.connection, deviceId: options.device }, { agentToken: secrets.agentToken, gatewayToken }, fetchImpl);
   const id = diagnostic.connection.id, manifest = readManifest(home), previous = structuredClone(manifest);
-  if (Object.values(manifest.connections).some(item => new URL(item.endpoint).origin !== new URL(endpoint).origin)) throw new ClientError("This client currently supports one Site. Use a separate OS user for a second Site.");
+  const other = Object.values(manifest.connections).map(item => new URL(item.endpoint).origin).find(origin => origin !== new URL(endpoint).origin);
+  if (other) throw new ClientError(`This client currently supports one Site, and this device is connected to ${other}. Remove those connections with disconnect --url ${other}, then connect again, or use a separate OS user for a second Site.`);
   const refs = credentialRefs(new URL(endpoint).origin, id), profile = loadProfiles().find(item => item.id === options.profile);
   // `~` in a path option means the home folder in every shell, PowerShell and cmd included.
   const [configOption, ruleOption, skillOption] = [configFile, ruleFile, skillDir].map(file => file && expandHome(file, userHome));
@@ -132,7 +141,7 @@ export async function connect(options, secrets, { home = clientHome(), userHome 
   // The config, rule file, language and skill choice are kept so the `skill` command can redo the instructions later.
   const record = { id, endpoint, profile: options.profile, deviceId: diagnostic.connection.deviceId, storage, configFile: configTarget, ruleFile: ruleTarget, lang,
     skillDir: placement.target ?? placement.placeholder, noSkill: Boolean(options["no-skill"]),
-    credentialRef: refs.agent, gatewayRef: refs.gateway, transport: chooseTransport(options.profile, options.transport), configVersion: 1 };
+    credentialRef: refs.agent, gatewayRef: gatewayToken ? refs.gateway : null, transport: chooseTransport(options.profile, options.transport), configVersion: 1 };
   const installed = launcher ? { launcher } : installClient({ home });
   const changes = withoutConflicts([
     ...planConfiguration({ record, launcher: installed.launcher, home: userHome, node, lang, configFile: configTarget, ruleFile: ruleTarget,
@@ -144,7 +153,7 @@ export async function connect(options, secrets, { home = clientHome(), userHome 
   const before = new Map(); let undoFiles;
   try {
     if (vault) {
-      for (const [ref, value] of [[refs.agent, secrets.agentToken], [refs.gateway, secrets.gatewayToken]]) {
+      for (const [ref, value] of [[refs.agent, secrets.agentToken], ...gatewayToken ? [[refs.gateway, gatewayToken]] : []]) {
         before.set(ref, vault.get(ref)); vault.set(ref, value);
       }
     }
@@ -152,7 +161,7 @@ export async function connect(options, secrets, { home = clientHome(), userHome 
     manifest.connections[id] = record; markActive(manifest, profile.id, id); saveManifest(manifest, home);
     if (storage === "env") {
       // Each connection has its own block, so configuring another agent never replaces the first agent's variables.
-      const values = { [envName(refs.agent)]: secrets.agentToken, [envName(refs.gateway)]: secrets.gatewayToken };
+      const values = { [envName(refs.agent)]: secrets.agentToken, ...gatewayToken ? { [envName(refs.gateway)]: gatewayToken } : {} };
       persist(Object.keys(values), { env: { ...process.env, ...values }, home: userHome, blockId: `connection-${id}`, label: options.profile });
     }
   } catch {
@@ -301,10 +310,109 @@ export function refreshRules({ skillDirs, version, root, launcher, home = client
   return { updated, failed };
 }
 
+/**
+ * `disconnect`: forget this device's connections to one deployment (`url`) or one connection, without asking the Site,
+ * which may no longer exist. Each removed connection's Agent Token leaves its storage, and the Site's gateway token
+ * does too once no remaining connection in that storage uses it. An agent whose active connection is removed loses its
+ * AgentRelay MCP entry, rule block and skill, through the writers connect uses; another saved connection owns none of
+ * them. Files are planned and the OS store is read before any change, so a refusal changes nothing. Nothing is
+ * revoked on the Site.
+ */
+export async function disconnect(options, { home = clientHome(), userHome = os.homedir(), store, env = process.env, clear = clearUserEnv } = {}) {
+  if (Boolean(options.url) === Boolean(options.connection))
+    throw new ClientError("Choose what to remove: --url <deployment> for all of its connections on this device, or --connection <id> for one.");
+  const manifest = readManifest(home), all = Object.values(manifest.connections);
+  let removed;
+  if (options.url) {
+    const origin = siteOrigin(options.url);
+    removed = all.filter(record => new URL(record.endpoint).origin === origin);
+    if (!removed.length) throw new ClientError(`No connection to ${origin} is saved on this device. Nothing was removed.`);
+  } else {
+    if (!/^[a-z0-9][a-z0-9_-]{0,127}$/i.test(options.connection)) throw new ClientError("Use the connection id from the Site or connections.json.");
+    const record = manifest.connections[options.connection];
+    if (!record || record.id !== options.connection) throw new ClientError(`No connection ${options.connection} is saved on this device. Nothing was removed.`);
+    removed = [record];
+  }
+  const ids = new Set(removed.map(record => record.id)), remaining = all.filter(record => !ids.has(record.id));
+  const agents = [], changes = [];
+  for (const record of removed) {
+    const profile = loadProfiles().find(item => item.id === record.profile);
+    const active = profile && activeConnectionId(manifest, record.profile, { userHome }) === record.id;
+    // A skill rendered for this connection goes wherever it is; the agent's default folder is checked for the active one.
+    changes.push(...planSkillRemoval({ skillDirs: [record.skillDir, active && profile.skillDir && profilePath(profile, profile.skillDir, userHome)], connection: record.id }));
+    if (!active) continue;
+    const configFile = record.configFile ?? path.resolve(profilePath(profile, profile.config.file, userHome));
+    const ruleFile = record.ruleFile ?? path.resolve(profilePath(profile, profile.ruleFile, userHome));
+    const plan = planRemoval({ record, configFile, ruleFile });
+    changes.push(...plan.changes);
+    agents.push({ profile, connection: record.id, configFile: plan.config ? configFile : null, ruleFile: plan.rule ? ruleFile : null, keptConfig: plan.keptConfig ? configFile : null,
+      others: remaining.filter(other => other.profile === record.profile).map(other => other.id) });
+  }
+  // Every credential a removed connection saved, and the gateway token once nothing left in the same storage uses it.
+  const secrets = [];
+  for (const record of removed) {
+    const storage = record.storage === "env" ? "env" : "os";
+    secrets.push({ storage, ref: record.credentialRef, block: `connection-${record.id}` });
+    if (record.gatewayRef && !remaining.some(other => other.gatewayRef === record.gatewayRef && (other.storage === "env" ? "env" : "os") === storage)
+      && !secrets.some(item => item.ref === record.gatewayRef && item.storage === storage)) secrets.push({ storage, ref: record.gatewayRef, block: `gateway-${record.gatewayRef}` });
+  }
+  const vaultRefs = secrets.filter(item => item.storage === "os").map(item => item.ref), envSecrets = secrets.filter(item => item.storage === "env");
+  let vault = null, present = [];
+  if (vaultRefs.length) {
+    try { vault = store ?? await systemStore(); present = vaultRefs.filter(ref => vault.get(ref) != null); }
+    catch { throw new ClientError("Cannot read the OS credential store. Unlock it and retry; nothing was removed."); }
+  }
+  const batch = withoutConflicts(changes), undo = applyFileChanges(batch);
+  for (const id of ids) delete manifest.connections[id];
+  for (const [profileId, id] of Object.entries(manifest.active ?? {})) if (ids.has(id)) delete manifest.active[profileId];
+  try { saveManifest(manifest, home); }
+  catch {
+    // saveManifest replaces the file by rename, so a failed save left the previous manifest in place.
+    try { undo(); } catch { throw new ClientError("Saving connections.json failed and the agent files could not be restored. Review them before retrying."); }
+    throw new ClientError("Saving connections.json failed. The agent files were restored; nothing was removed.");
+  }
+  const skills = removedSkillDirs(batch); pruneSkillDirs(skills);
+  // The connections are gone from here on, so a credential that cannot be removed is reported, never retried later.
+  const credentials = { removed: [], left: [] };
+  for (const ref of present) {
+    try { vault.remove(ref); credentials.removed.push(`OS credential store: AgentRelay/${ref}`); }
+    catch { credentials.left.push(`OS credential store: AgentRelay/${ref}`); }
+  }
+  let restart = null;
+  if (envSecrets.length) {
+    const names = envSecrets.map(item => envName(item.ref));
+    try {
+      const cleared = clear(names, { blockIds: envSecrets.map(item => item.block), env, home: userHome });
+      credentials.removed.push(...names.map(name => `environment variable ${name} (${cleared.where})`)); restart = cleared.restart || null;
+    } catch { credentials.left.push(...names.map(name => `environment variable ${name}`)); }
+  }
+  return { removed: removed.map(record => ({ id: record.id, origin: new URL(record.endpoint).origin, profile: record.profile })), agents, skills, credentials, restart };
+}
+
+/** What a person reads after `disconnect`: what left this device and what is left to do. Names and paths, never a value. */
+export function disconnectSummary(result) {
+  const lines = [`Removed ${result.removed.length === 1 ? "connection" : `${result.removed.length} connections`} from this device:`,
+    ...result.removed.map(item => `  ${item.id} (${loadProfiles().find(profile => profile.id === item.profile)?.label ?? item.profile}, ${item.origin})`)];
+  for (const agent of result.agents) {
+    if (agent.configFile) lines.push(`  MCP entry:     ${agent.configFile}`);
+    if (agent.keptConfig) lines.push(`  Kept:          ${agent.keptConfig}, whose AgentRelay entry starts another connection`);
+    if (agent.ruleFile) lines.push(`  Instructions:  the AgentRelay rule in ${agent.ruleFile}`);
+    if (agent.others.length) lines.push(`  ${agent.profile.label} has no active connection now. Run connect for ${agent.others.join(" or ")} to set it up again.`);
+  }
+  for (const dir of result.skills) lines.push(`  Skill:         ${dir}`);
+  for (const item of result.credentials.removed) lines.push(`  Credential:    ${item}`);
+  for (const item of result.credentials.left) lines.push(`  Not removed:   ${item}. Delete it by hand.`);
+  if (result.restart) lines.push(result.restart);
+  lines.push("Nothing was revoked on the Site. If it still exists, revoke these connections on its Agents page.",
+    "Restart the affected agents so they stop loading the removed entries.");
+  return lines.join("\n");
+}
+
 /** `gateway --stdin`: check the piped token against the Site, then keep it for every agent on this device. */
 export async function saveGateway({ url, storage = "os" }, input, { store, fetchImpl, persist = persistUserEnv, env = process.env, userHome = os.homedir() } = {}) {
   if (!["os", "env"].includes(storage)) throw new ClientError("Choose --storage os or --storage env.");
   const origin = siteOrigin(url), token = validGateway(input);
+  if (!await needsGateway(origin, fetchImpl)) throw new ClientError(`${origin} needs no gateway token: agents reach it with their Agent Token alone. Nothing was saved.`);
   await checkGateway(origin, token, fetchImpl);
   const { ref, variable } = gatewayRef(origin);
   if (storage === "env") {
@@ -437,11 +545,13 @@ export async function main(args) {
           try { gatewayToken = savedGateway(origin, { storage, vault: storage === "os" ? await systemStore() : null }); }
           catch { throw new ClientError("Cannot read the OS credential store. Unlock it, or explicitly choose --storage env."); }
         }
+        const askGateway = !gatewayToken && await needsGateway(origin);
         if (gatewayToken) process.stderr.write("Using the gateway token already saved for this Site on this device.\n");
+        else if (!askGateway) process.stderr.write("This Site needs no gateway token: the Agent Token is enough.\n");
         else process.stderr.write("No gateway token is saved for this Site on this device yet. It is asked for after the Agent Token: get it from Codex\n"
           + `(gateway --url ${origin} --stdin, see the Site's setup step) or from your password manager. Press Ctrl+C to stop and come back.\n`);
         secrets = { agentToken: await hiddenInput("Agent Token (shown once on the Site)"),
-          gatewayToken: gatewayToken ?? await hiddenInput("Sites gateway token (from Codex, or from your password manager)") };
+          gatewayToken: gatewayToken ?? (askGateway ? await hiddenInput("Sites gateway token (from Codex, or from your password manager)") : null) };
       }
       const result = await connect(options, secrets, { configFile: options["config-file"], ruleFile: options["rule-file"], skillDir: options["skill-dir"] });
       if (options.json) return console.log(JSON.stringify({ connection: result.connection, workspace: result.workspace, transport: result.transport, storage: result.storage,
@@ -458,6 +568,11 @@ export async function main(args) {
       const saved = await saveGateway(options, await readStdin(8192));
       console.log(`The Site accepted the gateway token. Saved it for ${saved.origin} in ${saved.where}; connect reuses it for every agent on this device.`);
       return saved.restart ? console.log(saved.restart) : undefined;
+    }
+    if (command === "disconnect") {
+      const result = await disconnect(options);
+      return console.log(options.json ? JSON.stringify({ removed: result.removed, agents: result.agents.map(agent => ({ ...agent, profile: agent.profile.id })),
+        skills: result.skills, credentials: result.credentials }, null, 2) : disconnectSummary(result));
     }
     if (command === "context") return console.log(JSON.stringify(gitContext({ since: options.since })));
     if (command === "check-base") {
@@ -489,7 +604,7 @@ export async function main(args) {
       const lines = createInterface({ input: process.stdin, crlfDelay: Infinity });
       lines.on("line", line => { void bridge.handle(line); }); lines.on("close", () => { void bridge.idle(); }); return;
     }
-    const siteUrl = new URL(record.endpoint).origin, authorization = `Bearer ${gatewayToken}`;
+    const siteUrl = new URL(record.endpoint).origin, authorization = gatewayToken ? `Bearer ${gatewayToken}` : null;
     if (command === "upload") {
       const retryKey = options["retry-key"] ?? `cli-${crypto.randomUUID()}`;
       if (!/^[\x21-\x7e]{1,100}$/.test(retryKey)) throw new ClientError("Invalid upload retry key.");

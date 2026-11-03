@@ -21,8 +21,12 @@ function useRide(status: string) {
   return { style: { "--p": PROGRESS[status] ?? 0 } as React.CSSProperties, moving: moving || undefined };
 }
 
+/** What a route needs from a handoff: a full record, a list row or a thread entry. */
+export type RouteRow = Pick<Handoff, "status" | "sourceDevice" | "targetDevice"> & {
+  sourceDeviceId?: string | null; targetDeviceId?: string | null; claimedBy?: string | null; claimedByDeviceId?: string | null };
+
 // Show the registry's current name and colour by id; handoffs whose device is gone keep their stored name.
-function useStops(row: Handoff, devices: DeviceIndex) {
+function useStops(row: RouteRow, devices: DeviceIndex) {
   const { t } = useLang();
   const from = resolveStop(devices, row.sourceDeviceId, row.sourceDevice, t.devices[3]);
   const to = resolveStop(devices, row.targetDeviceId, row.targetDevice, t.devices[3]);
@@ -30,7 +34,7 @@ function useStops(row: Handoff, devices: DeviceIndex) {
   return { from, to, claimedBy };
 }
 
-export function RouteMini({ row, devices }: { row: Handoff; devices: DeviceIndex }) {
+export function RouteMini({ row, devices }: { row: RouteRow; devices: DeviceIndex }) {
   const { t } = useLang();
   const ride = useRide(row.status);
   const { from, to } = useStops(row, devices);

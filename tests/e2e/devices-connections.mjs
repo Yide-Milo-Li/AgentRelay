@@ -3,12 +3,15 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { identityHeaders } from "../support/test-identity.mjs";
 
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5188";
 if (!/^(127\.0\.0\.1|localhost)$/.test(new URL(base).hostname)) throw new Error("Device checks only run against a local Worker.");
 const run = crypto.randomUUID();
 const session = `agentrelay-devices-${run.slice(0, 8)}`;
-const headers = { "oai-authenticated-user-id": `devices-qa-${run}`, "oai-authenticated-user-email": "devices@sites.test" };
+const headers = identityHeaders(`devices-qa-${run}`, "devices@sites.test");
+// A standalone Cloudflare build has no gateway token and no Site plugin; the runner says which build it serves.
+const standalone = process.env.AGENTRELAY_TEST_TARGET === "cloudflare";
 const binary = process.env.AGENT_BROWSER_BIN ?? (process.platform === "win32"
   ? path.join(process.env.APPDATA, "npm/node_modules/agent-browser/bin/agent-browser-win32-x64.exe") : "agent-browser");
 const output = path.resolve(process.env.AGENTRELAY_QA_OUTPUT ?? `outputs/devices-connections/${run}`);
@@ -222,6 +225,21 @@ try {
   await capture("connection-wizard-device");
   await click(".wizard-actions .btn.primary");
   await check("the agent step offers only agents and defaults to Claude Code", "document.querySelector('#wizard-heading').textContent === 'Which agent will connect?' && document.querySelector('.wizard input[name=connection-client]:checked').closest('label').textContent.startsWith('Claude Code') && !document.querySelector('.wizard input[name=connection-device]')");
+  // Four agent profiles, then the token-free option: the Site's own plugin on ChatGPT Sites, a native MCP client on Cloudflare.
+  const tokenFree = standalone ? "Claude Code, Codex or ChatGPT, signed in with Google" : "ChatGPT or Codex (this Site's plugin)";
+  await check(standalone ? "a standalone deployment offers a native client instead of the Site plugin" : "the Site's plugin is offered after the agents",
+    `(() => { const options = [...document.querySelectorAll('.wizard input[name=connection-client]')]; return options.length === 5 && options.at(-1).closest('label').textContent.startsWith(${JSON.stringify(tokenFree)}); })()`);
+  await evaluate("[...document.querySelectorAll('.wizard input[name=connection-client]')].at(-1).click(); true");
+  await click(".wizard-actions .btn.primary");
+  await wait("document.querySelector('.plugin-setup') !== null");
+  if (standalone) await check("the native client pane adds /mcp to each agent and gives the device id, with no token", "(() => { const pane = document.querySelector('.native-setup'), code = [...pane.querySelectorAll('pre')].map(pre => pre.textContent).join('\\n');"
+    + " return code.includes('claude mcp add --scope user --transport http agentrelay https://agentrelay.example.workers.dev/mcp') && code.includes('codex mcp login agentrelay') && code.includes('home-laptop') && !/agentrelay_|gateway/i.test(pane.textContent); })()");
+  else await check("the plugin pane installs the Site's plugin and gives the device id", "!document.querySelector('.native-setup') && [...document.querySelectorAll('.plugin-setup pre')].some(pre => pre.textContent.includes('home-laptop'))");
+  await capture(standalone ? "connection-wizard-native" : "connection-wizard-plugin");
+  await evaluate("[...document.querySelectorAll('.plugin-setup .wizard-actions .btn')].find(button => !button.classList.contains('primary')).click(); true");
+  await evaluate("document.querySelector('.wizard input[name=connection-client]').click(); true");
+  // The longer pane scrolled the page; bring the steps back from under the sticky top bar.
+  await evaluate("document.querySelector('.wizard-steps').scrollIntoView({ block: 'center' }); true");
   await check("a finished step shows what it settled", "document.querySelector('.wizard-steps li[data-state=done] small').textContent === 'Home laptop'");
   await click(".wizard-steps li[data-state=done] button");
   await check("a finished step can be reopened before the token exists", "document.querySelector('#wizard-heading').textContent === 'Which device will use it?'");
@@ -234,8 +252,10 @@ try {
   await wait("document.querySelector('.connection-secret') !== null");
   await check("issuing locks the earlier steps", "!document.querySelector('.wizard-steps button') && document.querySelectorAll('.wizard-steps li[data-state=done]').length === 3");
   await check("the verification step shows the one-time token", "/^agentrelay_[a-f0-9]{64}$/.test(document.querySelector('.connection-secret textarea').value)");
-  // A device's first connection starts with saving the Site's gateway token, so the command is the second panel.
-  await check("a device's first connection saves the gateway token before the command", "document.querySelector('.setup-gateway-first') !== null && document.querySelector('.connection-secret .setup-steps > li:nth-child(2) pre').textContent.includes('agentrelay.mjs connect')");
+  // On a ChatGPT Site a device's first connection starts with saving the gateway token, so the command is the second
+  // panel. A standalone deployment needs no gateway token: the command comes first and nothing mentions the gateway.
+  if (standalone) await check("a standalone deployment's first connection has no gateway step", "document.querySelector('.setup-gateway-first, .setup-gateway') === null && document.querySelector('.connection-secret .setup-steps > li:nth-child(1) pre').textContent.includes('agentrelay.mjs connect') && !/gateway/i.test(document.querySelector('.connection-secret').textContent)");
+  else await check("a device's first connection saves the gateway token before the command", "document.querySelector('.setup-gateway-first') !== null && document.querySelector('.connection-secret .setup-steps > li:nth-child(2) pre').textContent.includes('agentrelay.mjs connect')");
   await check("the command uses a connection reference and carries no token", "(() => { const code = [...document.querySelectorAll('.connection-secret .panel pre')].map(pre => pre.textContent).find(text => text.includes('agentrelay.mjs connect')); return code.includes('agentrelay.mjs connect --profile claude-code --device home-laptop --connection ') && !code.includes('agentrelay_'); })()");
   await check("authentication is explicitly distinct from an online agent", "document.querySelector('.connection-verification').textContent.includes('not that the agent is running')");
   // Never retain the one-time credential in a screenshot, including synthetic test credentials.

@@ -5,7 +5,7 @@ import { AgentRelayError } from "@/server/core/agent-relay-error";
 export const dynamic = "force-dynamic";
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const row = await getHandoff(ownerFrom(request), (await context.params).id);
+    const row = await getHandoff(await ownerFrom(request), (await context.params).id);
     if (!row.content) throw new AgentRelayError("This handoff has no text to export; it contains images only.", 409);
     const url = new URL(request.url);
     const isTxt = url.searchParams.get("format") === "txt";

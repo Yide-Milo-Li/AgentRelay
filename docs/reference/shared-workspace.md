@@ -15,3 +15,9 @@ Every viewer then works on your existing records with the same rights as you: th
 - **Attribution**: new handoffs store the sender's id and display name (`created_by_user_id`, `created_by_name`); only the name is returned (`createdByName`) and shown on the route. Agent Tokens store their issuer the same way, and requests made with one act as that member.
 - **Connections**: the connections list shows every member's tokens with "Issued by …", so anyone can revoke a leaked one. Removing someone from Sharing does **not** revoke their Agent Tokens; revoke them in the Agents tab.
 - **Turning sharing off**: unset the variable. Web users fall back to their own workspaces, and tokens issued by other members stop authenticating (they would otherwise reach your records).
+
+## On a standalone Cloudflare deployment
+
+The workspace is shared from the first deployment. The deploy command generates a fixed workspace key, keeps it in the deployment config and always sets `AGENTRELAY_WORKSPACE_OWNER_ID` to it, so no single person's login is the key and a change in anyone's Access identity cannot orphan the data.
+
+Who may sign in is the Allow policy of AgentRelay's Cloudflare Access application: add a member's email address to let them in, and take it out to remove them; revoke their Agent Tokens in the Agents tab, which removing them does not do. A policy that lists only you keeps the workspace private. Members sign in with Google, and their display name is their email address. There is no plugin to share; members connect native clients or token agents themselves.

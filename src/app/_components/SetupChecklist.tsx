@@ -2,6 +2,7 @@
 import { ArrowRight, Bell, Check } from "lucide-react";
 import { useLang } from "@/components/providers/LanguageProvider";
 import type { NotificationControl } from "@/features/handoffs";
+import { DEPLOYMENT_TARGET } from "@/shared/contracts/deployment-target";
 import type { SetupStep, SetupStepId } from "./setup-progress";
 
 export type SetupActions = {
@@ -54,7 +55,8 @@ export function SetupSteps({ steps, deviceName, otherName, siteUrl, actions, not
   function doneText(step: SetupStep) {
     switch (step.id) {
       case "device": return s.device.done(deviceName);
-      case "agent": return step.selfReported ? s.agent.plugin(deviceName) : s.agent.done(deviceName);
+      // Without a connection to see, the person's word stands: the Site's plugin, or a native client on Cloudflare.
+      case "agent": return step.selfReported ? (DEPLOYMENT_TARGET === "cloudflare" ? s.agent.native : s.agent.plugin)(deviceName) : s.agent.done(deviceName);
       case "nextDevice": return step.selfReported ? s.nextDevice.confirmed : s.nextDevice.done;
       case "handoff": return s.handoff.done;
     }
@@ -63,7 +65,8 @@ export function SetupSteps({ steps, deviceName, otherName, siteUrl, actions, not
     switch (id) {
       case "device": return <><p>{s.device.body}</p>
         <div className="setup-actions"><button type="button" className="btn primary small" onClick={actions.chooseDevice}>{s.device.action}</button></div></>;
-      case "agent": return <><p>{s.agent.body(deviceName)}</p>
+      // A standalone Cloudflare deployment offers a native client where a Site offers its plugin.
+      case "agent": return <><p>{(DEPLOYMENT_TARGET === "cloudflare" ? s.agent.bodyAccess : s.agent.body)(deviceName)}</p>
         <div className="setup-actions"><button type="button" className="btn primary small" onClick={actions.connectAgent}>{s.agent.action}<ArrowRight size={15} aria-hidden="true" /></button></div></>;
       case "nextDevice": return <><p>{s.nextDevice.body(siteUrl)}</p>
         <div className="setup-actions"><button type="button" className="btn small" onClick={actions.copyLink}>{s.nextDevice.copy}</button>

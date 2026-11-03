@@ -3,11 +3,12 @@ import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { identityHeaders } from "../support/test-identity.mjs";
 
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5178";
 if (!["127.0.0.1", "localhost"].includes(new URL(base).hostname)) throw new Error("Storage browser checks require a local Worker.");
 const run = crypto.randomUUID(), owner = `storage-browser-${run}`, session = `storage-${run.slice(0, 8)}`;
-const output = path.resolve(`outputs/storage-e2e/${run}`), headers = { "oai-authenticated-user-id": owner, "oai-authenticated-user-email": "storage@sites.test" };
+const output = path.resolve(`outputs/storage-e2e/${run}`), headers = identityHeaders(owner, "storage@sites.test");
 const localState = process.env.AGENTRELAY_TEST_STATE ?? ".wrangler/state";
 const localConfig = process.env.AGENTRELAY_TEST_CONFIG ?? "dist/server/wrangler.json";
 const binary = process.env.AGENT_BROWSER_BIN ?? (process.platform === "win32" ? path.join(process.env.APPDATA, "npm/node_modules/agent-browser/bin/agent-browser-win32-x64.exe") : "agent-browser");
@@ -70,6 +71,9 @@ try {
   checks.push("an expired handoff is deleted before Storage lists it");
   await check("Storage says expired handoffs are deleted automatically and offers no Expired shortcut", "document.querySelector('.storage-manager-heading p').textContent.includes('deleted automatically') && !document.querySelector('.storage-presets').textContent.includes('Expired')");
   await check("the image cleanup button names what it cleans", "document.querySelector('.storage-images .btn').textContent === 'Clean up images'");
+  // R2 has no fixed limit on Sites; a standalone Cloudflare deployment shows its free allowance instead.
+  const r2Label = process.env.AGENTRELAY_TEST_TARGET === "cloudflare" ? "10 GB-month free, billed above" : "No fixed limit";
+  await check(`the image storage row says "${r2Label}"`, `document.querySelectorAll('.storage-quota')[1].querySelector('.storage-quota-percent').textContent === ${JSON.stringify(r2Label)}`);
   await check("initial page has 50 rows and no automatic selection", "document.querySelectorAll('.storage-table tbody tr').length === 50 && document.querySelectorAll('.storage-table input:checked').length === 0 && !document.querySelector('.storage-selection')");
   await capture("desktop-default");
   await browser("set", "media", "dark"); await capture("desktop-dark");

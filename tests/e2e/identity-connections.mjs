@@ -3,10 +3,11 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { identityHeaders } from "../support/test-identity.mjs";
 const base = process.env.AGENTRELAY_TEST_URL ?? "http://127.0.0.1:5190";
 if (!["localhost", "127.0.0.1"].includes(new URL(base).hostname)) throw new Error("Identity browser checks require a local Worker.");
 const run = crypto.randomUUID(), session = `agentrelay-identity-${run.slice(0, 8)}`, output = path.resolve(`outputs/identity-connections/${run}`);
-const headers = { "oai-authenticated-user-id": `identity-browser-${run}`, "oai-authenticated-user-email": "tester@sites.test" }, checks = [];
+const headers = identityHeaders(`identity-browser-${run}`, "tester@sites.test"), checks = [];
 await mkdir(output, { recursive: true });
 const binary = process.env.AGENT_BROWSER_BIN ?? (process.platform === "win32"
   ? path.join(process.env.APPDATA, "npm/node_modules/agent-browser/bin/agent-browser-win32-x64.exe") : "agent-browser");

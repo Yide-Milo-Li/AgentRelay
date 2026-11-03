@@ -37,8 +37,21 @@ export type HandoffListItem = HandoffSummary & { preview: string; characters: nu
 /** Limits that the server enforces and agents and the browser read. */
 export const HANDOFF_LIMITS = { resultCharacters: 20000, threadSize: 100, titleCharacters: 160, branchCharacters: 200 } as const;
 
+/**
+ * The browser's inbox list (`GET /api/handoffs?view=summary`): `open` is the inbox (ready and claimed), `done` the
+ * Done view. Rows are newest first; `limit` may cover pages already loaded, up to the 500-handoff window.
+ */
+export type HandoffListScope = "open" | "done";
+export const HANDOFF_LIST = { pageSize: 50, maxLimit: 500, searchCharacters: 200 } as const;
+/** One page of the inbox list: the same rows `list_handoffs` returns, the cursor of the next page, and the inbox badge. */
+export type HandoffListPage = { handoffs: HandoffListItem[]; nextCursor: string | null; counts: { open: number } };
+/** Handoffs per project id in a scope (`GET /api/handoffs?view=project-counts`); `none` counts those without a project. */
+export type HandoffProjectCounts = { projects: Record<string, number> };
+
 /** One handoff in a thread. Content and result are read one handoff at a time. */
 export type HandoffThreadItem = { id: string; title: string; status: string; sourceDevice: string; targetDevice: string;
-  replyToId: string | null; createdAt: number; hasResult: boolean };
+  replyToId: string | null; createdAt: number; hasResult: boolean;
+  /** Registry ids behind the route names, so a thread shows each device in its colour; null for unregistered devices. */
+  sourceDeviceId?: string | null; targetDeviceId?: string | null };
 /** Active handoffs of a thread, oldest first. A root that expired or was deleted is simply missing from `items`. */
 export type HandoffThread = { rootId: string; items: HandoffThreadItem[] };
